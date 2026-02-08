@@ -19,6 +19,7 @@ class TradeRecord:
     amount_usd: float
     amount_btc: float | None
     price: float | None
+    leverage: int
     executed: bool
     dry_run: bool
     reason: str

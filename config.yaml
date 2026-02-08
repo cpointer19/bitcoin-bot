@@ -1,7 +1,5 @@
 exchange:
-  name: "kraken"
-  api_key: ""
-  api_secret: ""
+  name: "hyperliquid"
   testnet: true
 
 openai:
@@ -19,11 +17,12 @@ newsapi:
   api_key: ""
 
 trading:
-  symbol: "BTC/USD"
+  symbol: "BTC/USDC:USDC"
+  leverage: 2
   dry_run: true
   kill_switch: false
-  max_order_usd: 500
-  max_daily_usd: 1000
+  max_order_usd: 100
+  max_daily_usd: 100
 
 agents:
   sentiment:

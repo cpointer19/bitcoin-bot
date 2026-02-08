@@ -47,10 +47,10 @@ def main() -> None:
     print()
     if result.dry_run:
         print(f"[DRY RUN] {result.side.upper()} {result.amount_btc} BTC "
-              f"(${result.amount_usd}) @ ${result.price}")
+              f"(${result.amount_usd}) @ ${result.price} [{result.leverage}x leverage]")
     elif result.executed:
         print(f"ORDER FILLED  id={result.order_id}  "
-              f"{result.amount_btc} BTC @ ${result.price}")
+              f"{result.amount_btc} BTC @ ${result.price} [{result.leverage}x leverage]")
     else:
         print(f"Order not executed: {result.reason}")
 
@@ -64,6 +64,7 @@ def main() -> None:
         amount_usd=result.amount_usd,
         amount_btc=result.amount_btc,
         price=result.price,
+        leverage=result.leverage,
         executed=result.executed,
         dry_run=result.dry_run,
         reason=result.reason,

@@ -120,6 +120,7 @@ base_dca = config.get("orchestrator", {}).get("base_dca_usd", 100)
 st.sidebar.metric("Base DCA", f"${base_dca}")
 st.sidebar.metric("Dry Run", "ON" if config.get("trading", {}).get("dry_run", True) else "OFF")
 st.sidebar.metric("Kill Switch", "ON" if config.get("trading", {}).get("kill_switch", False) else "OFF")
+st.sidebar.metric("Leverage", f"{config.get('trading', {}).get('leverage', 1)}x")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Agent Weights**")
@@ -212,6 +213,7 @@ with tab_signals:
                     amount_usd=result.amount_usd,
                     amount_btc=result.amount_btc,
                     price=result.price,
+                    leverage=result.leverage,
                     executed=result.executed,
                     dry_run=result.dry_run,
                     reason=result.reason,
@@ -219,10 +221,14 @@ with tab_signals:
             if result.dry_run:
                 st.success(
                     f"[DRY RUN] Would BUY {result.amount_btc:.8f} BTC "
-                    f"(${result.amount_usd:.2f}) @ ${result.price:,.2f}"
+                    f"(${result.amount_usd:.2f}) @ ${result.price:,.2f} "
+                    f"[{result.leverage}x leverage]"
                 )
             elif result.executed:
-                st.success(f"ORDER FILLED — {result.amount_btc:.8f} BTC @ ${result.price:,.2f}")
+                st.success(
+                    f"ORDER FILLED — {result.amount_btc:.8f} BTC @ ${result.price:,.2f} "
+                    f"[{result.leverage}x leverage]"
+                )
             else:
                 st.error(f"Order blocked: {result.reason}")
 
@@ -322,7 +328,8 @@ with tab_trades:
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
         col_order = [
             "timestamp", "action", "dca_multiplier", "composite_score",
-            "amount_usd", "amount_btc", "price", "executed", "dry_run", "reason",
+            "amount_usd", "amount_btc", "price", "leverage",
+            "executed", "dry_run", "reason",
         ]
         df = df[[c for c in col_order if c in df.columns]]
 
