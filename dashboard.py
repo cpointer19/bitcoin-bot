@@ -218,13 +218,13 @@ with tab_signals:
                     dry_run=result.dry_run,
                     reason=result.reason,
                 ))
-            if result.dry_run:
+            if result.dry_run and result.amount_btc is not None:
                 st.success(
                     f"[DRY RUN] Would BUY {result.amount_btc:.8f} BTC "
                     f"(${result.amount_usd:.2f}) @ ${result.price:,.2f} "
                     f"[{result.leverage}x leverage]"
                 )
-            elif result.executed:
+            elif result.executed and result.amount_btc is not None:
                 st.success(
                     f"ORDER FILLED — {result.amount_btc:.8f} BTC @ ${result.price:,.2f} "
                     f"[{result.leverage}x leverage]"
