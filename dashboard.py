@@ -325,7 +325,7 @@ with tab_trades:
     else:
         df = pd.DataFrame(history)
         # Format display
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.strftime("%Y-%m-%d %H:%M")
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, format="mixed").dt.strftime("%Y-%m-%d %H:%M")
         col_order = [
             "timestamp", "action", "dca_multiplier", "composite_score",
             "amount_usd", "amount_btc", "price", "leverage",
