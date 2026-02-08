@@ -1,0 +1,73 @@
+exchange:
+  name: "kraken"
+  api_key: ""
+  api_secret: ""
+  testnet: true
+
+openai:
+  api_key: ""
+  model: "gpt-4o"
+
+anthropic:
+  api_key: ""
+  model: "claude-haiku-4-5-20251001"
+
+twitter:
+  bearer_token: ""
+
+newsapi:
+  api_key: ""
+
+trading:
+  symbol: "BTC/USD"
+  dry_run: true
+  kill_switch: false
+  max_order_usd: 500
+  max_daily_usd: 1000
+
+agents:
+  sentiment:
+    enabled: true
+    weight: 0.25  # normalised by orchestrator
+    max_tweets: 50
+    accounts:
+      - "@saborskyn"
+      - "@100trillionUSD"
+      - "@wolonopmics"
+      - "@DocumentingBTC"
+      - "@BitcoinMagazine"
+    hashtags:
+      - "#Bitcoin"
+      - "#BTC"
+    rate_limit:
+      max_calls: 10
+      period_seconds: 60
+  geopolitical:
+    enabled: true
+    weight: 0.15
+    max_headlines: 30
+    queries:
+      - "bitcoin regulation"
+      - "bitcoin sanctions"
+      - "banking crisis"
+      - "currency devaluation"
+      - "central bank digital currency"
+      - "capital controls crypto"
+    rate_limit:
+      max_calls: 10
+      period_seconds: 60
+  technical:
+    enabled: true
+    weight: 0.30
+    symbol: "BTC/USD"
+    daily_candles: 400
+    weekly_candles: 200
+  cycle:
+    enabled: true
+    weight: 0.30
+    mvrv_live: true
+
+orchestrator:
+  base_dca_usd: 100
+  min_confidence: 0.0
+  poll_interval_seconds: 300
