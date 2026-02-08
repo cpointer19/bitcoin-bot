@@ -7,8 +7,10 @@ Run with:
 
 from __future__ import annotations
 
+import os
 from io import StringIO
 
+import requests as httpx
 import yaml
 import pandas as pd
 import plotly.graph_objects as go
@@ -67,6 +69,62 @@ def _score_color(score: float) -> str:
 def _conf_bar(confidence: float) -> str:
     pct = int(confidence * 100)
     return f"`{'|' * (pct // 5)}{'.' * (20 - pct // 5)}` {pct}%"
+
+
+_HL_INFO_URL = "https://api.hyperliquid.xyz/info"
+
+
+def _get_wallet_address() -> str:
+    """Read wallet address from env or Streamlit secrets."""
+    addr = os.getenv("HYPERLIQUID_WALLET_ADDRESS", "")
+    if not addr:
+        try:
+            addr = st.secrets.get("HYPERLIQUID_WALLET_ADDRESS", "")
+        except (AttributeError, FileNotFoundError):
+            pass
+    return addr
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_account_stats(wallet: str) -> dict | None:
+    """Fetch basic account stats from the Hyperliquid public API."""
+    try:
+        state = httpx.post(
+            _HL_INFO_URL,
+            json={"type": "clearinghouseState", "user": wallet},
+            timeout=10,
+        ).json()
+
+        portfolio = httpx.post(
+            _HL_INFO_URL,
+            json={"type": "portfolio", "user": wallet},
+            timeout=10,
+        ).json()
+
+        margin = state.get("marginSummary", {})
+        equity = float(margin.get("accountValue", 0))
+        withdrawable = float(state.get("withdrawable", 0))
+        margin_used = float(margin.get("totalMarginUsed", 0))
+
+        open_pnl = sum(
+            float(p.get("position", {}).get("unrealizedPnl", 0))
+            for p in state.get("assetPositions", [])
+        )
+
+        all_time = portfolio.get("allTime", {})
+        total_pnl = float(all_time.get("pnl", 0)) if isinstance(all_time, dict) else 0
+        volume = float(all_time.get("vlm", 0)) if isinstance(all_time, dict) else 0
+
+        return {
+            "equity": equity,
+            "available": withdrawable,
+            "margin_used": margin_used,
+            "open_pnl": open_pnl,
+            "total_pnl": total_pnl,
+            "volume": volume,
+        }
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +188,24 @@ for name, acfg in agents_cfg.items():
     w = acfg.get("weight", 0) / total_w * 100 if total_w else 0
     st.sidebar.text(f"  {name:<15} {w:.0f}%")
 
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Account**")
+_wallet = _get_wallet_address()
+if _wallet:
+    _stats = fetch_account_stats(_wallet)
+    if _stats:
+        st.sidebar.metric("Equity", f"${_stats['equity']:,.2f}")
+        st.sidebar.metric("Available", f"${_stats['available']:,.2f}")
+        st.sidebar.metric("Margin Used", f"${_stats['margin_used']:,.2f}")
+        st.sidebar.metric("Open PnL", f"${_stats['open_pnl']:+,.2f}")
+        st.sidebar.metric("All-Time PnL", f"${_stats['total_pnl']:+,.2f}")
+        st.sidebar.metric("Volume", f"${_stats['volume']:,.0f}")
+    else:
+        st.sidebar.warning("Could not fetch account data")
+else:
+    st.sidebar.info("Set HYPERLIQUID_WALLET_ADDRESS to see account stats")
+
+st.sidebar.markdown("---")
 run_now = st.sidebar.button("Run Analysis Now")
 
 # ---------------------------------------------------------------------------
