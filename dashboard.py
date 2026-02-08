@@ -111,9 +111,15 @@ def fetch_account_stats(wallet: str) -> dict | None:
             for p in state.get("assetPositions", [])
         )
 
-        all_time = portfolio.get("allTime", {})
-        total_pnl = float(all_time.get("pnl", 0)) if isinstance(all_time, dict) else 0
-        volume = float(all_time.get("vlm", 0)) if isinstance(all_time, dict) else 0
+        # portfolio is a list of [period_name, data] pairs
+        all_time: dict = {}
+        for item in portfolio:
+            if isinstance(item, list) and len(item) == 2 and item[0] == "allTime":
+                all_time = item[1]
+                break
+        pnl_history = all_time.get("pnlHistory", [])
+        total_pnl = float(pnl_history[-1][1]) if pnl_history else 0
+        volume = float(all_time.get("vlm", 0))
 
         return {
             "equity": equity,
