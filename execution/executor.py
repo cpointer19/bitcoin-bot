@@ -10,9 +10,12 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 import ccxt
-from dotenv import load_dotenv
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +87,15 @@ class Executor:
         ex_cfg = config.get("exchange", {})
         self._wallet_address: str = os.getenv("HYPERLIQUID_WALLET_ADDRESS", "")
         self._private_key: str = os.getenv("HYPERLIQUID_PRIVATE_KEY", "")
+
+        # Fallback: read from Streamlit secrets on Streamlit Cloud
+        if not self._wallet_address or not self._private_key:
+            try:
+                import streamlit as st
+                self._wallet_address = self._wallet_address or st.secrets.get("HYPERLIQUID_WALLET_ADDRESS", "")
+                self._private_key = self._private_key or st.secrets.get("HYPERLIQUID_PRIVATE_KEY", "")
+            except (ImportError, AttributeError):
+                pass
         self._testnet: bool = ex_cfg.get("testnet", True)
 
         trading_cfg = config.get("trading", {})
