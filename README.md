@@ -9,7 +9,7 @@ Four agents each produce a **score** ([-1, +1]) and **confidence** ([0, 1]). The
 ### Signal Flow
 
 ```
-Reddit posts ────► Sentiment Agent  ──┐
+Twitter tweets ──► Sentiment Agent  ──┐
 NewsAPI headlines ► Geopolitical Agent ┤
 Kraken OHLCV ────► Technical Agent  ──┼──► Orchestrator ──► DCA Multiplier ──► Hyperliquid
 Halving + MVRV ──► Cycle Agent     ──┘        │                  │            (2x leveraged
@@ -49,11 +49,9 @@ Two sub-signals blended **55% cycle position + 45% MVRV Z-Score**:
 
 #### Sentiment (25% weight)
 
-Fetches up to 50 hot posts from r/Bitcoin, r/CryptoCurrency, and r/BitcoinMarkets via Reddit's public JSON API (no credentials needed). Each post includes title, body text, upvote score, and comment count. Claude LLM scores overall sentiment from -1 (extreme fear) to +1 (extreme greed), weighting highly-upvoted posts more heavily.
+Fetches up to 50 recent tweets from configured accounts (@saborskyn, @100trillionUSD, @wolonopmics, @DocumentingBTC, @BitcoinMagazine) and hashtags (#Bitcoin, #BTC). Claude LLM scores overall sentiment from -1 (extreme fear) to +1 (extreme greed).
 
 **Contrarian flip**: the raw sentiment is inverted &mdash; `score = -0.8 * sentiment`. Extreme fear becomes a buy signal (+0.8), extreme greed becomes a sell signal (-0.8).
-
-*Twitter/X integration is planned when API budget permits (requires Basic plan). The code is preserved in the codebase for future re-enablement.*
 
 #### Geopolitical (15% weight)
 
@@ -115,8 +113,8 @@ To get these credentials:
 Configure remaining API keys in `config.yaml` or as environment variables:
 
 - **Anthropic** (`ANTHROPIC_API_KEY`) &mdash; Claude LLM for sentiment & geopolitical analysis
+- **Twitter** (`TWITTER_BEARER_TOKEN`) &mdash; bearer token for tweet fetching
 - **NewsAPI** (`NEWSAPI_KEY`) &mdash; headlines for geopolitical agent
-- Reddit sentiment uses the public JSON API &mdash; no credentials needed
 
 ## Usage
 
