@@ -287,7 +287,7 @@ with tab_signals:
                 c2.markdown(f"**Confidence:** {_conf_bar(sig.confidence)}")
                 st.markdown(
                     f'<div style="white-space:pre-wrap; word-wrap:break-word; '
-                    f'font-size:0.85rem; line-height:1.5;">{sig.reasoning}</div>',
+                    f'font-size:1.05rem; line-height:1.6;">{sig.reasoning}</div>',
                     unsafe_allow_html=True,
                 )
 
