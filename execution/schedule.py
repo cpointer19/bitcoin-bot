@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 _SCHEDULE_PATH = Path("execution/scheduled_buys.json")
 _TZ_PT = ZoneInfo("America/Los_Angeles")
 _PLANNED_HOUR = 9  # 9 AM Pacific
-_FIRST_DATE = date(2025, 2, 15)  # First scheduled buy
+_FIRST_DATE = date(2026, 2, 15)  # First scheduled buy
 
 
 @dataclass

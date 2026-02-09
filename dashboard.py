@@ -606,7 +606,7 @@ with tab_schedule:
     _schedule = load_schedule()
 
     if not _schedule:
-        st.info("No scheduled buys yet. The first entry will appear on Feb 15, 2025 after 9:00 AM PT.")
+        st.info("No scheduled buys yet. The first entry will appear on Feb 15, 2026 after 9:00 AM PT.")
     else:
         _schedule_sorted = sorted(_schedule, key=lambda e: e["date"], reverse=True)
         _schedule_display = _schedule_sorted[:30]
