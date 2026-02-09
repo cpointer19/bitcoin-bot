@@ -243,10 +243,15 @@ st.markdown(
     /* Gold-bordered Run Analysis button */
     button[kind="primary"] {
         border: 2px solid #FFD700 !important;
+        background-color: #1a7a3a !important;
+        color: #ffffff !important;
         font-size: 1.1rem !important;
         font-weight: 600 !important;
         padding: 0.6rem 1.2rem !important;
         min-height: 3rem !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #228B22 !important;
     }
     </style>
     """,
