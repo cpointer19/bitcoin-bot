@@ -251,8 +251,10 @@ def _fmt(usd_val: float, decimals: int = 2, sign: bool = False) -> str:
 
 
 st.sidebar.markdown("---")
-base_dca = config.get("orchestrator", {}).get("base_dca_usd", 100)
-st.sidebar.metric("Base DCA", _fmt(base_dca, decimals=0))
+_base_dca_cad = config.get("orchestrator", {}).get("base_dca_cad", 200)
+_cad_rate = _fetch_usd_cad_rate()
+base_dca = _base_dca_cad / _cad_rate  # Convert CAD config to USD for orders
+st.sidebar.metric("Base DCA", f"C${_base_dca_cad:.0f}" if _ccy == "CAD" else _fmt(base_dca, decimals=0))
 st.sidebar.metric("Dry Run", "ON" if config.get("trading", {}).get("dry_run", True) else "OFF")
 st.sidebar.metric("Kill Switch", "ON" if config.get("trading", {}).get("kill_switch", False) else "OFF")
 st.sidebar.metric("Leverage", f"{config.get('trading', {}).get('leverage', 1)}x")
@@ -560,6 +562,8 @@ tab_signals, tab_strategy, tab_chart, tab_trades, tab_schedule = st.tabs(
 with tab_signals:
     if run_now:
         with st.spinner("Running all agents..."):
+            # Inject the USD-converted base DCA so the orchestrator uses it
+            config.setdefault("orchestrator", {})["base_dca_usd"] = base_dca
             agent_instances = [
                 SentimentAgent(config),
                 GeopoliticalAgent(config),

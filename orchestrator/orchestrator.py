@@ -49,6 +49,8 @@ class Orchestrator:
         self.agents = agents
         self.config = config
         orch_cfg = config.get("orchestrator", {})
+        # Support both base_dca_usd (legacy) and base_dca_cad configs.
+        # Callers should pre-convert CAD to USD and pass via base_dca_usd override.
         self._base_dca_usd: float = orch_cfg.get("base_dca_usd", 100.0)
         self._min_confidence: float = orch_cfg.get("min_confidence", 0.0)
 

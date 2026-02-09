@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+
+import requests
 import yaml
 
 from agents import SentimentAgent, GeopoliticalAgent, TechnicalAgent, CycleAgent
@@ -35,7 +37,17 @@ def main() -> None:
     orchestrator = Orchestrator(agents, config)
     decision = orchestrator.decide()
 
-    base_dca = config.get("orchestrator", {}).get("base_dca_usd", 100)
+    orch_cfg = config.get("orchestrator", {})
+    if "base_dca_cad" in orch_cfg:
+        try:
+            _rate = requests.get(
+                "https://api.exchangerate-api.com/v4/latest/USD", timeout=5
+            ).json()["rates"]["CAD"]
+        except Exception:
+            _rate = 1.36
+        base_dca = orch_cfg["base_dca_cad"] / _rate
+    else:
+        base_dca = orch_cfg.get("base_dca_usd", 100)
     order_usd = base_dca * decision.dca_multiplier
 
     print(decision.reasoning)
