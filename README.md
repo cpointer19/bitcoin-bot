@@ -1,19 +1,19 @@
 # BTC Bot
 
-A multi-agent Bitcoin DCA bot that opens 3x leveraged long positions on [Hyperliquid](https://app.hyperliquid.xyz) perpetual futures, dynamically sizing orders based on market signals. Includes a Streamlit dashboard for visualization and one-click trade execution.
+A multi-agent Bitcoin trading bot that opens leveraged positions on [Hyperliquid](https://app.hyperliquid.xyz) perpetual futures, dynamically sizing orders based on market signals. Includes a Streamlit dashboard for visualization and one-click trade execution.
 
 ## Strategy
 
-Four agents each produce a **score** ([-1, +1]) and **confidence** ([0, 1]). The orchestrator blends them into a single composite score using confidence-weighted averaging, then maps that score to a DCA multiplier that scales the base order size.
+Four agents each produce a **score** ([-1, +1]) and **confidence** ([0, 1]). The orchestrator blends them into a single composite score using confidence-weighted averaging, then maps that score to an order multiplier that scales the base position size.
 
 ### Signal Flow
 
 ```
 Reddit posts ────► Sentiment Agent  ──┐
 Google News RSS ─► Geopolitical Agent ┤
-Kraken OHLCV ────► Technical Agent  ──┼──► Orchestrator ──► DCA Multiplier ──► Hyperliquid
-Halving + MVRV ──► Cycle Agent     ──┘        │                  │            (3x leveraged
-                                         composite score    base * Nx         perp longs)
+Kraken OHLCV ────► Technical Agent  ──┼──► Orchestrator ──► Order Multiplier ──► Hyperliquid
+Halving + MVRV ──► Cycle Agent     ──┘        │                  │              (leveraged
+                                         composite score    base * Nx           perp futures)
 ```
 
 ### Agents
@@ -84,7 +84,7 @@ Low-confidence signals are naturally down-weighted. The composite maps to an act
 
 ### Execution
 
-All orders are **market buy** on BTC/USDC perpetual futures via Hyperliquid with **3x leverage**. A daily margin cap limits total deployment per day &mdash; total notional and position value accumulate over time.
+All orders are placed on BTC/USDC perpetual futures via Hyperliquid with configurable leverage. A daily margin cap limits total deployment per day &mdash; total notional and position value accumulate over time.
 
 Safety layers:
 - **Kill switch** &mdash; halts all trading instantly
@@ -143,14 +143,14 @@ All settings live in `config.yaml`:
 - `trading.dry_run` &mdash; when `true`, simulates orders without placing them
 - `trading.kill_switch` &mdash; disables all trading when `true`
 - `trading.max_order_usd` / `max_daily_usd` &mdash; margin safety limits
-- `orchestrator.base_dca_usd` &mdash; base order size before multiplier
+- `orchestrator.base_order_usd` &mdash; base order size before multiplier
 - `agents.<name>.weight` &mdash; per-agent influence on final score
 
 ## Project Structure
 
 ```
 agents/          Agent implementations (sentiment, geopolitical, technical, cycle)
-orchestrator/    Signal aggregation and DCA decision logic
+orchestrator/    Signal aggregation and decision logic
 execution/       Order execution (Hyperliquid) and trade logging
 models/          Shared data models (Signal)
 dashboard.py     Streamlit UI
