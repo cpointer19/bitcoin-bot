@@ -416,6 +416,9 @@ st.markdown(
     }
     [data-testid="stExpander"] summary span {
         font-family: "JetBrains Mono", monospace !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        letter-spacing: 0.02em !important;
     }
 
     /* ── Text inputs ── */
@@ -623,7 +626,7 @@ with tab_signals:
         st.subheader("Agent Signals")
         for sig in decision.signals:
             with st.expander(
-                f"**{sig.agent.upper()}**  |  "
+                f"{sig.agent.upper()}  |  "
                 f"Score: {sig.score:+.4f}  |  "
                 f"Confidence: {sig.confidence:.0%}"
             ):
