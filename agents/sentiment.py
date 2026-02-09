@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 
 import anthropic
 import numpy as np
 import tweepy
+
+try:
+    from dotenv import load_dotenv
+    from pathlib import Path
+    # Resolve .env relative to project root (parent of agents/)
+    _env_path = Path(__file__).resolve().parent.parent / ".env"
+    load_dotenv(_env_path)
+except ImportError:
+    pass
 
 from models.signal import Signal
 from .base import BaseAgent
@@ -210,8 +220,17 @@ class SentimentAgent(BaseAgent):
         super().__init__(config)
         sent_cfg = config.get("agents", {}).get("sentiment", {})
 
-        # Twitter config.
-        self._bearer_token: str = config.get("twitter", {}).get("bearer_token", "")
+        # Twitter config — prefer env var, fall back to config, then Streamlit secrets.
+        self._bearer_token: str = (
+            os.getenv("TWITTER_BEARER_TOKEN", "")
+            or config.get("twitter", {}).get("bearer_token", "")
+        )
+        if not self._bearer_token:
+            try:
+                import streamlit as st
+                self._bearer_token = st.secrets["TWITTER_BEARER_TOKEN"]
+            except Exception:
+                pass
         self._accounts: list[str] = sent_cfg.get("accounts", [
             "@saborskyn",
             "@100trillionUSD",

@@ -118,7 +118,18 @@ def fetch_account_stats(wallet: str) -> dict | None:
                 all_time = item[1]
                 break
         pnl_history = all_time.get("pnlHistory", [])
-        total_pnl = float(pnl_history[-1][1]) if pnl_history else 0
+        # PnL since Jan 1 2026: last cumulative value minus value at cutoff
+        _cutoff_ms = 1767225600000  # 2026-01-01T00:00:00Z
+        if pnl_history:
+            # Find cumulative PnL at the cutoff (last entry before cutoff)
+            baseline = 0.0
+            for ts, pnl in pnl_history:
+                if ts >= _cutoff_ms:
+                    break
+                baseline = float(pnl)
+            total_pnl = float(pnl_history[-1][1]) - baseline
+        else:
+            total_pnl = 0
         volume = float(all_time.get("vlm", 0))
 
         return {
@@ -204,7 +215,7 @@ if _wallet:
         st.sidebar.metric("Available", f"${_stats['available']:,.2f}")
         st.sidebar.metric("Margin Used", f"${_stats['margin_used']:,.2f}")
         st.sidebar.metric("Open PnL", f"${_stats['open_pnl']:+,.2f}")
-        st.sidebar.metric("All-Time PnL", f"${_stats['total_pnl']:+,.2f}")
+        st.sidebar.metric("PnL (2026)", f"${_stats['total_pnl']:+,.2f}", help="Cumulative PnL starting from Jan 1, 2026")
         st.sidebar.metric("Volume", f"${_stats['volume']:,.0f}")
     else:
         st.sidebar.warning("Could not fetch account data")
