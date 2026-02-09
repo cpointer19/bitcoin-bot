@@ -112,10 +112,18 @@ def _generate_greeting_llm(
     next_buy: str,
     api_key: str,
     model: str,
+    currency: str = "USD",
+    ccy_rate: float = 1.0,
 ) -> str:
     """Call Anthropic to generate a contextual daily greeting."""
     now_pt = datetime.now(_TZ_PT)
     greeting = _time_greeting()
+    ccy_sym = "C$" if currency == "CAD" else "$"
+
+    def _convert(usd_val: float | None) -> str | None:
+        if usd_val is None:
+            return None
+        return f"{ccy_sym}{usd_val * ccy_rate:,.2f}"
 
     context = {
         "greeting": greeting,
@@ -124,22 +132,25 @@ def _generate_greeting_llm(
         "time_pt": now_pt.strftime("%I:%M %p PT"),
         "next_scheduled_buy": next_buy,
         "leverage_assessment": leverage_info,
+        "display_currency": currency,
     }
 
     if stats:
         context["account"] = {
-            "equity": stats.get("equity"),
-            "open_pnl": stats.get("open_pnl"),
-            "total_pnl": stats.get("total_pnl"),
-            "btc_price": stats.get("btc_price"),
-            "position_notional": stats.get("notional"),
-            "liquidation_price": stats.get("liquidation_px"),
-            "margin_used": stats.get("margin_used"),
-            "available": stats.get("available"),
+            "equity": _convert(stats.get("equity")),
+            "open_pnl": _convert(stats.get("open_pnl")),
+            "total_pnl": _convert(stats.get("total_pnl")),
+            "btc_price": _convert(stats.get("btc_price")),
+            "position_notional": _convert(stats.get("notional")),
+            "liquidation_price": _convert(stats.get("liquidation_px")),
+            "margin_used": _convert(stats.get("margin_used")),
+            "available": _convert(stats.get("available")),
         }
 
     user_prompt = (
-        f"Generate today's briefing for Curtis. Here is the current state:\n\n"
+        f"Generate today's briefing for Curtis. All monetary values are shown in "
+        f"{currency}. Use the {currency} symbol ({ccy_sym}) for all dollar amounts. "
+        f"Here is the current state:\n\n"
         f"{json.dumps(context, indent=2, default=str)}"
     )
 
@@ -171,10 +182,13 @@ def get_daily_greeting(
     stats: dict | None,
     config: dict,
     next_buy_label: str,
+    currency: str = "CAD",
+    ccy_rate: float = 1.0,
 ) -> str:
     """Return today's cached greeting, or generate a fresh one.
 
-    Caches per PT calendar day so the LLM is called at most once per day.
+    Caches per PT calendar day + currency so the LLM is called at most once
+    per day per currency setting.
     """
     # Check cache
     cache: dict = {}
@@ -184,7 +198,12 @@ def get_daily_greeting(
         except (json.JSONDecodeError, OSError):
             cache = {}
 
-    if not _is_greeting_stale(cache) and cache.get("message"):
+    cache_hit = (
+        not _is_greeting_stale(cache)
+        and cache.get("message")
+        and cache.get("currency") == currency
+    )
+    if cache_hit:
         return cache["message"]
 
     # Get API key
@@ -200,11 +219,14 @@ def get_daily_greeting(
     model = anthropic_cfg.get("model", "claude-haiku-4-5-20251001")
 
     leverage_info = _assess_leverage(stats)
-    message = _generate_greeting_llm(stats, leverage_info, next_buy_label, api_key, model)
+    message = _generate_greeting_llm(
+        stats, leverage_info, next_buy_label, api_key, model,
+        currency=currency, ccy_rate=ccy_rate,
+    )
 
     # Cache it
     today = datetime.now(_TZ_PT).strftime("%Y-%m-%d")
-    new_cache = {"date": today, "message": message}
+    new_cache = {"date": today, "message": message, "currency": currency}
     try:
         _GREETING_CACHE.parent.mkdir(parents=True, exist_ok=True)
         _GREETING_CACHE.write_text(json.dumps(new_cache, indent=2))

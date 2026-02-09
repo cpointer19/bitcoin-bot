@@ -33,7 +33,7 @@ from models.signal import Signal
 # Page config
 # ---------------------------------------------------------------------------
 
-st.set_page_config(page_title="BTC DCA Bot", layout="wide")
+st.set_page_config(page_title="BTC DCA Bot", page_icon="🐧", layout="wide")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -74,6 +74,19 @@ def _score_color(score: float) -> str:
 def _conf_bar(confidence: float) -> str:
     pct = int(confidence * 100)
     return f"`{'|' * (pct // 5)}{'.' * (20 - pct // 5)}` {pct}%"
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_usd_cad_rate() -> float:
+    """Fetch current USD→CAD exchange rate. Falls back to 1.36 on error."""
+    try:
+        resp = httpx.get(
+            "https://api.exchangerate-api.com/v4/latest/USD",
+            timeout=5,
+        )
+        return float(resp.json()["rates"]["CAD"])
+    except Exception:
+        return 1.36
 
 
 _HL_INFO_URL = "https://api.hyperliquid.xyz/info"
@@ -222,8 +235,24 @@ def run_backtest(config_dict: str, daily_df_json: str, weekly_df_json: str):
 st.sidebar.title("BTC DCA Bot")
 config = load_config()
 
+# Currency toggle (CAD default)
+_ccy_choice = st.sidebar.toggle("Show in CAD", value=True, key="ccy_toggle")
+_ccy = "CAD" if _ccy_choice else "USD"
+_ccy_rate = _fetch_usd_cad_rate() if _ccy == "CAD" else 1.0
+_ccy_sym = "C$" if _ccy == "CAD" else "$"
+
+
+def _fmt(usd_val: float, decimals: int = 2, sign: bool = False) -> str:
+    """Format a USD value in the selected display currency."""
+    converted = usd_val * _ccy_rate
+    if sign:
+        return f"{_ccy_sym}{converted:+,.{decimals}f}"
+    return f"{_ccy_sym}{converted:,.{decimals}f}"
+
+
+st.sidebar.markdown("---")
 base_dca = config.get("orchestrator", {}).get("base_dca_usd", 100)
-st.sidebar.metric("Base DCA", f"${base_dca}")
+st.sidebar.metric("Base DCA", _fmt(base_dca, decimals=0))
 st.sidebar.metric("Dry Run", "ON" if config.get("trading", {}).get("dry_run", True) else "OFF")
 st.sidebar.metric("Kill Switch", "ON" if config.get("trading", {}).get("kill_switch", False) else "OFF")
 st.sidebar.metric("Leverage", f"{config.get('trading', {}).get('leverage', 1)}x")
@@ -462,28 +491,28 @@ if _wallet:
         # Row 1: position & PnL
         _r1 = st.columns(4)
         if _stats["notional"] is not None:
-            _r1[0].metric("Position Value", _v(f"${_stats['notional']:,.2f}"))
+            _r1[0].metric("Position Value", _v(_fmt(_stats['notional'])))
         else:
             _r1[0].metric("Position Value", "—", help="No open BTC position")
-        _r1[1].metric("Open PnL", _v(f"${_stats['open_pnl']:+,.2f}"))
+        _r1[1].metric("Open PnL", _v(_fmt(_stats['open_pnl'], sign=True)))
         _r1[2].metric(
             "All-Time PnL",
-            _v(f"${_stats['total_pnl']:+,.2f}"),
+            _v(_fmt(_stats['total_pnl'], sign=True)),
             help="Cumulative PnL since Feb 8, 2026 — the day this bot was born",
         )
         if _stats["liquidation_px"] is not None:
-            _r1[3].metric("Liq. Price", _v(f"${_stats['liquidation_px']:,.0f}"))
+            _r1[3].metric("Liq. Price", _v(_fmt(_stats['liquidation_px'], decimals=0)))
         else:
             _r1[3].metric("Liq. Price", "—", help="No open BTC position")
         # Row 2: price & account details
         _r2 = st.columns(4)
         if _stats["btc_price"] is not None:
-            _r2[0].metric("BTC Price", f"${_stats['btc_price']:,.2f}")  # price is public, never masked
+            _r2[0].metric("BTC Price", _fmt(_stats['btc_price']))  # price is public, never masked
         else:
             _r2[0].metric("BTC Price", "—")
-        _r2[1].metric("Equity", _v(f"${_stats['equity']:,.2f}"))
-        _r2[2].metric("Available", _v(f"${_stats['available']:,.2f}"))
-        _r2[3].metric("Margin Used", _v(f"${_stats['margin_used']:,.2f}"))
+        _r2[1].metric("Equity", _v(_fmt(_stats['equity'])))
+        _r2[2].metric("Available", _v(_fmt(_stats['available'])))
+        _r2[3].metric("Margin Used", _v(_fmt(_stats['margin_used'])))
         st.markdown("---")
 
 # ---- Daily briefing from the bot ----
@@ -493,6 +522,8 @@ _greeting_msg = get_daily_greeting(
     stats=_greeting_stats,
     config=config,
     next_buy_label=_next_buy_label,
+    currency=_ccy,
+    ccy_rate=_ccy_rate,
 )
 st.markdown(
     "<div style='"
@@ -561,7 +592,7 @@ with tab_signals:
             f"{decision.composite_score:+.4f}",
         )
         order_usd = base_dca * decision.dca_multiplier
-        col_dca.metric("Order Size", f"${order_usd:.0f}", f"{decision.dca_multiplier:.1f}x base")
+        col_dca.metric("Order Size", _fmt(order_usd, decimals=0), f"{decision.dca_multiplier:.1f}x base")
 
         st.markdown(
             "<div style='font-size:0.9rem; line-height:1.6; color:#aaa; margin-top:0.8rem;'>"
@@ -640,12 +671,12 @@ with tab_signals:
             if result.dry_run and result.amount_btc is not None:
                 st.success(
                     f"[DRY RUN] Would BUY {result.amount_btc:.8f} BTC "
-                    f"(${result.amount_usd:.2f}) @ ${result.price:,.2f} "
+                    f"({_fmt(result.amount_usd)}) @ {_fmt(result.price)} "
                     f"[{result.leverage}x leverage]"
                 )
             elif result.executed and result.amount_btc is not None:
                 st.success(
-                    f"ORDER FILLED — {result.amount_btc:.8f} BTC @ ${result.price:,.2f} "
+                    f"ORDER FILLED — {result.amount_btc:.8f} BTC @ {_fmt(result.price)} "
                     f"[{result.leverage}x leverage]"
                 )
             else:
@@ -678,13 +709,14 @@ with tab_chart:
             shared_xaxes=True,
             vertical_spacing=0.06,
             row_heights=[0.65, 0.35],
-            subplot_titles=["BTC/USD Price", "Technical Score"],
+            subplot_titles=[f"BTC/{_ccy} Price", "Technical Score"],
         )
 
-        # Price line
+        # Price line (convert to display currency)
+        _chart_prices = bt_df["close"] * _ccy_rate
         fig.add_trace(
             go.Scatter(
-                x=bt_df["date"], y=bt_df["close"],
+                x=bt_df["date"], y=_chart_prices,
                 name="BTC Price",
                 line=dict(color="#f7931a", width=2),
             ),
@@ -718,7 +750,7 @@ with tab_chart:
             legend=dict(orientation="h", y=1.02, x=0.5, xanchor="center"),
             margin=dict(l=60, r=30, t=50, b=30),
         )
-        fig.update_yaxes(title_text="USD", row=1, col=1)
+        fig.update_yaxes(title_text=_ccy, row=1, col=1)
         fig.update_yaxes(title_text="Score", range=[-1.1, 1.1], row=2, col=1)
 
         st.plotly_chart(fig, use_container_width=True)
@@ -768,7 +800,7 @@ with tab_trades:
         total_spent = df["amount_usd"].sum()
         total_btc = df["amount_btc"].dropna().sum()
         c1.metric("Total Trades", len(df))
-        c2.metric("Total Spent (USD)", f"${total_spent:,.2f}")
+        c2.metric(f"Total Spent ({_ccy})", _fmt(total_spent))
         c3.metric("Total BTC Accumulated", f"{total_btc:.8f}")
 
 # ===================================================================
@@ -802,13 +834,13 @@ with tab_schedule:
             else:
                 _col_status.success("Confirmed")
 
-            _col_amount.markdown(f"Planned: **${_entry['planned_amount_usd']:.0f}**")
+            _col_amount.markdown(f"Planned: **{_fmt(_entry['planned_amount_usd'], decimals=0)}**")
 
             if _entry["status"] == "confirmed":
                 _d1, _d2, _d3, _d4 = st.columns(4)
-                _d1.metric("Actual USD", f"${_entry.get('actual_amount_usd', 0):.2f}")
+                _d1.metric(f"Actual {_ccy}", _fmt(_entry.get('actual_amount_usd', 0)))
                 _d2.metric("BTC", f"{_entry.get('actual_amount_btc', 0):.8f}")
-                _d3.metric("Price", f"${_entry.get('price', 0):,.2f}")
+                _d3.metric("Price", _fmt(_entry.get('price', 0)))
                 _action_lbl = _ACTION_EMOJI.get(
                     _entry.get("action", ""), _entry.get("action", "—")
                 )
@@ -833,7 +865,7 @@ with tab_schedule:
             _total_dca_spent = sum(e.get("actual_amount_usd", 0) or 0 for e in _confirmed)
             _total_dca_btc = sum(e.get("actual_amount_btc", 0) or 0 for e in _confirmed)
             _s5, _s6 = st.columns(2)
-            _s5.metric("Total DCA Spent", f"${_total_dca_spent:,.2f}")
+            _s5.metric("Total DCA Spent", _fmt(_total_dca_spent))
             _s6.metric("Total BTC via DCA", f"{_total_dca_btc:.8f}")
 
 # ===================================================================
