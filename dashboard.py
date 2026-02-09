@@ -486,11 +486,41 @@ _hidden = st.session_state["hide_values"]
 _mask = "••••"
 run_now = _btn_col.button("Run Analysis Now", type="primary", use_container_width=True)
 
+_wallet = _get_wallet_address()
+if _wallet:
+    _short_addr = f"{_wallet[:6]}...{_wallet[-4:]}"
+    st.html(
+        f"<div style='margin: -0.8rem 0 1rem 0; display: flex; align-items: center; gap: 0.5rem;'>"
+        f"<span style='"
+        f"font-family: \"JetBrains Mono\", monospace; "
+        f"font-size: 0.82rem; "
+        f"color: #f7931a; "
+        f"letter-spacing: 0.03em; "
+        f"opacity: 0.85;"
+        f"'>{_short_addr}</span>"
+        f"<button onclick=\"navigator.clipboard.writeText('{_wallet}').then(() => {{"
+        f"this.textContent = 'Copied!';"
+        f"setTimeout(() => this.textContent = 'Copy', 1500);"
+        f"}})\" style='"
+        f"background: transparent; "
+        f"border: 1px solid #f7931a44; "
+        f"color: #f7931a; "
+        f"font-family: \"JetBrains Mono\", monospace; "
+        f"font-size: 0.7rem; "
+        f"padding: 2px 8px; "
+        f"border-radius: 3px; "
+        f"cursor: pointer; "
+        f"letter-spacing: 0.05em; "
+        f"transition: all 0.2s ease;"
+        f"' onmouseover=\"this.style.borderColor='#f7931a'; this.style.boxShadow='0 0 8px #f7931a33'\""
+        f" onmouseout=\"this.style.borderColor='#f7931a44'; this.style.boxShadow='none'\""
+        f">Copy</button>"
+        f"</div>"
+    )
+
 # ---------------------------------------------------------------------------
 # Account overview (top of page)
 # ---------------------------------------------------------------------------
-
-_wallet = _get_wallet_address()
 if _wallet:
     _stats = fetch_account_stats(_wallet)
     if _stats:
