@@ -237,8 +237,16 @@ st.sidebar.markdown("---")
 # Main content
 # ---------------------------------------------------------------------------
 
-_title_col, _btn_col = st.columns([3, 1])
+_title_col, _eye_col, _btn_col = st.columns([3, 0.4, 1])
 _title_col.title("BTC Bot")
+if "hide_values" not in st.session_state:
+    st.session_state["hide_values"] = False
+_eye_label = "Hide" if not st.session_state["hide_values"] else "Show"
+if _eye_col.button(_eye_label, key="eye_toggle", use_container_width=True):
+    st.session_state["hide_values"] = not st.session_state["hide_values"]
+    st.rerun()
+_hidden = st.session_state["hide_values"]
+_mask = "••••"
 run_now = _btn_col.button("Run Analysis Now", use_container_width=True)
 
 # ---------------------------------------------------------------------------
@@ -249,32 +257,36 @@ _wallet = _get_wallet_address()
 if _wallet:
     _stats = fetch_account_stats(_wallet)
     if _stats:
+        def _v(fmt: str) -> str:
+            """Return formatted value or mask."""
+            return _mask if _hidden else fmt
+
         # Row 1: position & PnL
         _r1 = st.columns(4)
         if _stats["notional"] is not None:
-            _r1[0].metric("Position Value", f"${_stats['notional']:,.2f}")
+            _r1[0].metric("Position Value", _v(f"${_stats['notional']:,.2f}"))
         else:
             _r1[0].metric("Position Value", "—", help="No open BTC position")
-        _r1[1].metric("Open PnL", f"${_stats['open_pnl']:+,.2f}")
+        _r1[1].metric("Open PnL", _v(f"${_stats['open_pnl']:+,.2f}"))
         _r1[2].metric(
             "PnL (2026)",
-            f"${_stats['total_pnl']:+,.2f}",
+            _v(f"${_stats['total_pnl']:+,.2f}"),
             help="Cumulative PnL starting from Jan 1, 2026",
         )
         if _stats["liquidation_px"] is not None:
-            _r1[3].metric("Liq. Price", f"${_stats['liquidation_px']:,.0f}")
+            _r1[3].metric("Liq. Price", _v(f"${_stats['liquidation_px']:,.0f}"))
         else:
             _r1[3].metric("Liq. Price", "—", help="No open BTC position")
         # Row 2: price & account details
         _r2 = st.columns(5)
         if _stats["btc_price"] is not None:
-            _r2[0].metric("BTC Price", f"${_stats['btc_price']:,.2f}")
+            _r2[0].metric("BTC Price", f"${_stats['btc_price']:,.2f}")  # price is public, never masked
         else:
             _r2[0].metric("BTC Price", "—")
-        _r2[1].metric("Equity", f"${_stats['equity']:,.2f}")
-        _r2[2].metric("Available", f"${_stats['available']:,.2f}")
-        _r2[3].metric("Margin Used", f"${_stats['margin_used']:,.2f}")
-        _r2[4].metric("Volume", f"${_stats['volume']:,.0f}")
+        _r2[1].metric("Equity", _v(f"${_stats['equity']:,.2f}"))
+        _r2[2].metric("Available", _v(f"${_stats['available']:,.2f}"))
+        _r2[3].metric("Margin Used", _v(f"${_stats['margin_used']:,.2f}"))
+        _r2[4].metric("Volume", _v(f"${_stats['volume']:,.0f}"))
         st.markdown("---")
 
 # ---- Tab layout ----
