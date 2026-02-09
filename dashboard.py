@@ -536,7 +536,7 @@ _greeting_msg = get_daily_greeting(
     ccy_rate=_ccy_rate,
 )
 _safe_greeting = html.escape(_greeting_msg)
-st.markdown(
+st.html(
     "<div style='"
     "background: #0a0a0f; "
     "border-left: 3px solid #f7931a; "
@@ -545,18 +545,16 @@ st.markdown(
     "border-bottom: 1px solid #1a1a25; "
     "border-radius: 4px; "
     "padding: 1.2rem 1.5rem; "
-    "font-family: \"JetBrains Mono\", monospace; "
+    "font-family: \"JetBrains Mono\", \"Fira Code\", \"Courier New\", monospace; "
     "font-size: 0.95rem; "
     "line-height: 1.8; "
     "color: #c0c8d0; "
     "white-space: pre-wrap; "
     "word-wrap: break-word; "
     "overflow-wrap: break-word; "
-    "overflow: hidden; "
     "max-width: 100%; "
     "margin-bottom: 1rem;"
-    f"'>{_safe_greeting}</div>",
-    unsafe_allow_html=True,
+    f"'>{_safe_greeting}</div>"
 )
 
 # ---- Schedule ledger: auto-generate today's entry & mark stale as missed ----
