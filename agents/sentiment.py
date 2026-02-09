@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -67,10 +68,14 @@ class RedditPost:
 
 
 class RedditFetcher:
-    """Fetch recent posts from Bitcoin subreddits via Reddit's public JSON API."""
+    """Fetch recent posts from Bitcoin subreddits.
+
+    Tries the JSON API first (richer data: scores, comments, selftext).
+    Falls back to Reddit RSS feeds if JSON is blocked (common on cloud IPs).
+    """
 
     _USER_AGENT = "linux:bitcoin-bot:v1.0 (by /u/bitcoin-bot-agent)"
-    _DOMAINS = ["old.reddit.com", "www.reddit.com"]
+    _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
     def __init__(self, subreddits: list[str], max_posts: int = 50, sort: str = "hot") -> None:
         self._subreddits = subreddits
@@ -88,21 +93,30 @@ class RedditFetcher:
         per_sub = max(self._max_posts // len(self._subreddits), 10)
 
         for sub in self._subreddits:
-            try:
-                resp = None
-                for domain in self._DOMAINS:
-                    url = f"https://{domain}/r/{sub}/{self._sort}.json"
-                    resp = self._session.get(
-                        url,
-                        params={"limit": per_sub, "raw_json": 1},
-                        timeout=15,
-                    )
-                    if resp.status_code == 200:
-                        break
-                    logger.warning("Reddit %s returned %s, trying next domain", domain, resp.status_code)
-                resp.raise_for_status()
-                data = resp.json()
+            sub_posts = self._fetch_json(sub, per_sub)
+            if not sub_posts:
+                logger.info("JSON API failed for r/%s, trying RSS fallback", sub)
+                sub_posts = self._fetch_rss(sub, per_sub)
+            posts.extend(sub_posts)
+            time.sleep(1.0)
 
+        return posts
+
+    def _fetch_json(self, sub: str, limit: int) -> list[RedditPost]:
+        """Try the JSON API (old.reddit.com first, then www)."""
+        for domain in ("old.reddit.com", "www.reddit.com"):
+            try:
+                url = f"https://{domain}/r/{sub}/{self._sort}.json"
+                resp = self._session.get(
+                    url,
+                    params={"limit": limit, "raw_json": 1},
+                    timeout=15,
+                )
+                if resp.status_code != 200:
+                    logger.warning("Reddit JSON %s returned %s", domain, resp.status_code)
+                    continue
+                data = resp.json()
+                posts: list[RedditPost] = []
                 for child in data.get("data", {}).get("children", []):
                     p = child.get("data", {})
                     if p.get("stickied"):
@@ -119,12 +133,47 @@ class RedditFetcher:
                         score=p.get("score", 0),
                         num_comments=p.get("num_comments", 0),
                     ))
-                # Respect Reddit rate limit: 1 req/sec for unauthenticated
-                time.sleep(1.0)
+                if posts:
+                    return posts
             except (requests.RequestException, ValueError, KeyError) as exc:
-                logger.warning("Reddit fetch failed for r/%s: %s", sub, exc)
+                logger.warning("Reddit JSON fetch failed for r/%s (%s): %s", sub, domain, exc)
+        return []
 
-        return posts
+    def _fetch_rss(self, sub: str, limit: int) -> list[RedditPost]:
+        """Fallback: Reddit RSS/Atom feed (less data but more reliable on cloud)."""
+        try:
+            url = f"https://www.reddit.com/r/{sub}/{self._sort}.rss"
+            resp = self._session.get(url, timeout=15)
+            if resp.status_code != 200:
+                logger.warning("Reddit RSS returned %s for r/%s", resp.status_code, sub)
+                return []
+            root = ET.fromstring(resp.content)
+            posts: list[RedditPost] = []
+            for entry in root.findall("atom:entry", self._ATOM_NS)[:limit]:
+                title = entry.findtext("atom:title", "", self._ATOM_NS)
+                author_el = entry.find("atom:author/atom:name", self._ATOM_NS)
+                author = author_el.text if author_el is not None else "[unknown]"
+                updated = entry.findtext("atom:updated", "", self._ATOM_NS)
+                # Extract text content from the HTML content field
+                content_el = entry.findtext("atom:content", "", self._ATOM_NS)
+                selftext = ""
+                if content_el:
+                    # Strip HTML tags for a rough plaintext extraction
+                    import re
+                    selftext = re.sub(r"<[^>]+>", " ", content_el)[:500].strip()
+                posts.append(RedditPost(
+                    subreddit=sub,
+                    author=author.replace("/u/", ""),
+                    title=title,
+                    selftext=selftext,
+                    created_utc=updated,
+                    score=0,
+                    num_comments=0,
+                ))
+            return posts
+        except (requests.RequestException, ET.ParseError, ValueError) as exc:
+            logger.warning("Reddit RSS fetch failed for r/%s: %s", sub, exc)
+            return []
 
 
 # ---------------------------------------------------------------------------
