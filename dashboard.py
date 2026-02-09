@@ -142,6 +142,19 @@ def fetch_account_stats(wallet: str) -> dict | None:
             total_pnl = 0
         volume = float(all_time.get("vlm", 0))
 
+        # Current BTC mid-price
+        btc_price = None
+        try:
+            mids = httpx.post(
+                _HL_INFO_URL,
+                json={"type": "allMids"},
+                timeout=10,
+            ).json()
+            if "BTC" in mids:
+                btc_price = float(mids["BTC"])
+        except Exception:
+            pass
+
         return {
             "equity": equity,
             "available": withdrawable,
@@ -151,6 +164,7 @@ def fetch_account_stats(wallet: str) -> dict | None:
             "volume": volume,
             "liquidation_px": liquidation_px,
             "notional": notional,
+            "btc_price": btc_price,
         }
     except Exception:
         return None
@@ -251,12 +265,16 @@ if _wallet:
             _r1[3].metric("Liq. Price", f"${_stats['liquidation_px']:,.0f}")
         else:
             _r1[3].metric("Liq. Price", "—", help="No open BTC position")
-        # Row 2: account details
-        _r2 = st.columns(4)
-        _r2[0].metric("Equity", f"${_stats['equity']:,.2f}")
-        _r2[1].metric("Available", f"${_stats['available']:,.2f}")
-        _r2[2].metric("Margin Used", f"${_stats['margin_used']:,.2f}")
-        _r2[3].metric("Volume", f"${_stats['volume']:,.0f}")
+        # Row 2: price & account details
+        _r2 = st.columns(5)
+        if _stats["btc_price"] is not None:
+            _r2[0].metric("BTC Price", f"${_stats['btc_price']:,.2f}")
+        else:
+            _r2[0].metric("BTC Price", "—")
+        _r2[1].metric("Equity", f"${_stats['equity']:,.2f}")
+        _r2[2].metric("Available", f"${_stats['available']:,.2f}")
+        _r2[3].metric("Margin Used", f"${_stats['margin_used']:,.2f}")
+        _r2[4].metric("Volume", f"${_stats['volume']:,.0f}")
         st.markdown("---")
 
 # ---- Tab layout ----
