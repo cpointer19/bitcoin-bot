@@ -7,6 +7,7 @@ Run with:
 
 from __future__ import annotations
 
+import html
 import os
 from io import StringIO
 
@@ -534,6 +535,7 @@ _greeting_msg = get_daily_greeting(
     currency=_ccy,
     ccy_rate=_ccy_rate,
 )
+_safe_greeting = html.escape(_greeting_msg)
 st.markdown(
     "<div style='"
     "background: #0a0a0f; "
@@ -548,8 +550,12 @@ st.markdown(
     "line-height: 1.8; "
     "color: #c0c8d0; "
     "white-space: pre-wrap; "
+    "word-wrap: break-word; "
+    "overflow-wrap: break-word; "
+    "overflow: hidden; "
+    "max-width: 100%; "
     "margin-bottom: 1rem;"
-    f"'>{_greeting_msg}</div>",
+    f"'>{_safe_greeting}</div>",
     unsafe_allow_html=True,
 )
 
