@@ -10,8 +10,8 @@ anthropic:
   api_key: ""
   model: "claude-haiku-4-5-20251001"
 
-twitter:
-  bearer_token: ""
+# twitter:                    # TODO: Re-enable when API budget permits ($200/mo Basic plan)
+#   bearer_token: ""
 
 newsapi:
   api_key: ""
@@ -28,16 +28,12 @@ agents:
   sentiment:
     enabled: true
     weight: 0.25  # normalised by orchestrator
-    max_tweets: 50
-    accounts:
-      - "@saborskyn"
-      - "@100trillionUSD"
-      - "@wolonopmics"
-      - "@DocumentingBTC"
-      - "@BitcoinMagazine"
-    hashtags:
-      - "#Bitcoin"
-      - "#BTC"
+    max_posts: 50
+    sort: "hot"   # hot | new | top | rising
+    subreddits:
+      - "Bitcoin"
+      - "CryptoCurrency"
+      - "BitcoinMarkets"
     rate_limit:
       max_calls: 10
       period_seconds: 60

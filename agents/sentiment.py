@@ -1,4 +1,4 @@
-"""Sentiment agent — Twitter/X search → Anthropic LLM scoring → contrarian signal."""
+"""Sentiment agent — Reddit posts → Anthropic LLM scoring → contrarian signal."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import anthropic
 import numpy as np
-import tweepy
+import requests
 
 try:
     from dotenv import load_dotenv
@@ -51,68 +52,136 @@ class _RateLimiter:
 
 
 # ---------------------------------------------------------------------------
-# Tweet fetcher
+# Reddit fetcher (active data source)
 # ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
-class Tweet:
+class RedditPost:
+    subreddit: str
     author: str
-    text: str
-    created_at: str
+    title: str
+    selftext: str
+    created_utc: str
+    score: int
+    num_comments: int
 
 
-class TwitterFetcher:
-    """Fetch recent tweets matching accounts + hashtags via Twitter API v2."""
+class RedditFetcher:
+    """Fetch recent posts from Bitcoin subreddits via Reddit's public JSON API."""
 
-    def __init__(self, bearer_token: str, max_results: int = 50) -> None:
-        self._client = tweepy.Client(bearer_token=bearer_token, wait_on_rate_limit=True)
-        self._max_results = min(max_results, 100)  # API cap per request
+    _USER_AGENT = "bitcoin-bot/1.0 (sentiment analysis)"
 
-    def search(self, accounts: list[str], hashtags: list[str]) -> list[Tweet]:
-        """Build a query from accounts and hashtags, return recent tweets."""
-        parts: list[str] = []
-        for acct in accounts:
-            handle = acct.lstrip("@")
-            parts.append(f"from:{handle}")
-        for tag in hashtags:
-            tag = tag.lstrip("#")
-            parts.append(f"#{tag}")
-        if not parts:
-            return []
+    def __init__(self, subreddits: list[str], max_posts: int = 50, sort: str = "hot") -> None:
+        self._subreddits = subreddits
+        self._max_posts = max_posts
+        self._sort = sort
+        self._session = requests.Session()
+        self._session.headers.update({"User-Agent": self._USER_AGENT})
 
-        query = f"({' OR '.join(parts)}) -is:retweet lang:en"
-        # Twitter API v2 query max is 512 chars.
-        if len(query) > 512:
-            query = query[:512]
+    def fetch(self) -> list[RedditPost]:
+        """Fetch posts from all configured subreddits."""
+        posts: list[RedditPost] = []
+        per_sub = max(self._max_posts // len(self._subreddits), 10)
 
-        tweets: list[Tweet] = []
-        try:
-            resp = self._client.search_recent_tweets(
-                query=query,
-                max_results=self._max_results,
-                tweet_fields=["author_id", "created_at", "text"],
-                expansions=["author_id"],
-                user_fields=["username"],
-            )
-            if resp.data is None:
-                return []
+        for sub in self._subreddits:
+            try:
+                url = f"https://www.reddit.com/r/{sub}/{self._sort}.json"
+                resp = self._session.get(
+                    url,
+                    params={"limit": per_sub, "raw_json": 1},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                data = resp.json()
 
-            # Build author_id → username map.
-            user_map: dict[str, str] = {}
-            if resp.includes and "users" in resp.includes:
-                for user in resp.includes["users"]:
-                    user_map[str(user.id)] = user.username
+                for child in data.get("data", {}).get("children", []):
+                    p = child.get("data", {})
+                    if p.get("stickied"):
+                        continue
+                    created = datetime.fromtimestamp(
+                        p.get("created_utc", 0), tz=timezone.utc
+                    ).isoformat()
+                    posts.append(RedditPost(
+                        subreddit=sub,
+                        author=p.get("author", "[deleted]"),
+                        title=p.get("title", ""),
+                        selftext=(p.get("selftext") or "")[:500],
+                        created_utc=created,
+                        score=p.get("score", 0),
+                        num_comments=p.get("num_comments", 0),
+                    ))
+                # Respect Reddit rate limit: 1 req/sec for unauthenticated
+                time.sleep(1.0)
+            except (requests.RequestException, ValueError, KeyError) as exc:
+                logger.warning("Reddit fetch failed for r/%s: %s", sub, exc)
 
-            for tw in resp.data:
-                tweets.append(Tweet(
-                    author=user_map.get(str(tw.author_id), "unknown"),
-                    text=tw.text,
-                    created_at=str(tw.created_at or ""),
-                ))
-        except tweepy.TweepyException as exc:
-            logger.warning("Twitter search failed: %s", exc)
+        return posts
 
-        return tweets
+
+# ---------------------------------------------------------------------------
+# Twitter fetcher (disabled — requires Basic plan $200/mo)
+# TODO: Re-enable Twitter when API budget permits.
+# ---------------------------------------------------------------------------
+#
+# import tweepy
+#
+# @dataclass(frozen=True)
+# class Tweet:
+#     author: str
+#     text: str
+#     created_at: str
+#
+#
+# class TwitterFetcher:
+#     """Fetch recent tweets matching accounts + hashtags via Twitter API v2."""
+#
+#     def __init__(self, bearer_token: str, max_results: int = 50) -> None:
+#         self._client = tweepy.Client(bearer_token=bearer_token, wait_on_rate_limit=True)
+#         self._max_results = min(max_results, 100)
+#
+#     def search(self, accounts: list[str], hashtags: list[str]) -> list[Tweet]:
+#         """Build a query from accounts and hashtags, return recent tweets."""
+#         parts: list[str] = []
+#         for acct in accounts:
+#             handle = acct.lstrip("@")
+#             parts.append(f"from:{handle}")
+#         for tag in hashtags:
+#             tag = tag.lstrip("#")
+#             parts.append(f"#{tag}")
+#         if not parts:
+#             return []
+#
+#         query = f"({' OR '.join(parts)}) -is:retweet lang:en"
+#         if len(query) > 512:
+#             query = query[:512]
+#
+#         tweets: list[Tweet] = []
+#         try:
+#             resp = self._client.search_recent_tweets(
+#                 query=query,
+#                 max_results=self._max_results,
+#                 tweet_fields=["author_id", "created_at", "text"],
+#                 expansions=["author_id"],
+#                 user_fields=["username"],
+#             )
+#             if resp.data is None:
+#                 return []
+#
+#             user_map: dict[str, str] = {}
+#             if resp.includes and "users" in resp.includes:
+#                 for user in resp.includes["users"]:
+#                     user_map[str(user.id)] = user.username
+#
+#             for tw in resp.data:
+#                 tweets.append(Tweet(
+#                     author=user_map.get(str(tw.author_id), "unknown"),
+#                     text=tw.text,
+#                     created_at=str(tw.created_at or ""),
+#                 ))
+#         except tweepy.TweepyException as exc:
+#             logger.warning("Twitter search failed: %s", exc)
+#
+#         return tweets
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +190,8 @@ class TwitterFetcher:
 
 _SYSTEM_PROMPT = """\
 You are a Bitcoin market sentiment analyst. You will be given a batch of recent \
-tweets about Bitcoin. Assess the overall market sentiment expressed in these tweets.
+Reddit posts from Bitcoin-related subreddits. Assess the overall market sentiment \
+expressed in these posts.
 
 Return ONLY valid JSON with exactly these fields:
 {
@@ -136,8 +206,9 @@ Guidelines:
 - Neutral/mixed → sentiment near 0.0
 - Optimistic/bullish → sentiment +0.3 to +0.7
 - Euphoria/FOMO/moon language → sentiment near +1.0
-- If tweets are few or uninformative, set confidence low (0.2-0.4)
-- Weight tweets from known analysts more heavily than random accounts"""
+- If posts are few or uninformative, set confidence low (0.2-0.4)
+- Weight highly-upvoted posts more heavily than low-score posts
+- Consider both post titles and body text for sentiment cues"""
 
 
 @dataclass(frozen=True)
@@ -148,18 +219,26 @@ class LLMSentiment:
 
 
 def _score_via_llm(
-    tweets: list[Tweet],
+    posts: list[RedditPost],
     api_key: str,
     model: str,
     rate_limiter: _RateLimiter,
 ) -> LLMSentiment:
-    """Send tweets to Anthropic Claude and parse a sentiment score."""
-    tweet_block = "\n\n".join(
-        f"@{tw.author} ({tw.created_at}):\n{tw.text}" for tw in tweets
+    """Send Reddit posts to Anthropic Claude and parse a sentiment score."""
+    post_block = "\n\n".join(
+        (
+            f"r/{p.subreddit} | u/{p.author} | score:{p.score} | comments:{p.num_comments} | {p.created_utc}\n"
+            f"{p.title}\n{p.selftext}"
+        )
+        if p.selftext else (
+            f"r/{p.subreddit} | u/{p.author} | score:{p.score} | comments:{p.num_comments} | {p.created_utc}\n"
+            f"{p.title}"
+        )
+        for p in posts
     )
     user_prompt = (
-        f"Here are {len(tweets)} recent Bitcoin-related tweets:\n\n"
-        f"{tweet_block}\n\n"
+        f"Here are {len(posts)} recent Bitcoin-related Reddit posts:\n\n"
+        f"{post_block}\n\n"
         "Analyse the overall sentiment and return JSON."
     )
 
@@ -212,7 +291,7 @@ def _contrarian_score(sentiment: float) -> float:
 # ---------------------------------------------------------------------------
 
 class SentimentAgent(BaseAgent):
-    """Gauges market sentiment from X/Twitter via LLM analysis with contrarian logic."""
+    """Gauges market sentiment from Reddit via LLM analysis with contrarian logic."""
 
     name = "sentiment"
 
@@ -220,29 +299,12 @@ class SentimentAgent(BaseAgent):
         super().__init__(config)
         sent_cfg = config.get("agents", {}).get("sentiment", {})
 
-        # Twitter config — prefer env var, fall back to config, then Streamlit secrets.
-        self._bearer_token: str = (
-            os.getenv("TWITTER_BEARER_TOKEN", "")
-            or config.get("twitter", {}).get("bearer_token", "")
-        )
-        if not self._bearer_token:
-            try:
-                import streamlit as st
-                self._bearer_token = st.secrets["TWITTER_BEARER_TOKEN"]
-            except Exception:
-                pass
-        self._accounts: list[str] = sent_cfg.get("accounts", [
-            "@saborskyn",
-            "@100trillionUSD",
-            "@wolonopmics",
-            "@DocumentingBTC",
-            "@BitcoinMagazine",
+        # Reddit config (public JSON API — no credentials needed).
+        self._subreddits: list[str] = sent_cfg.get("subreddits", [
+            "Bitcoin", "CryptoCurrency", "BitcoinMarkets",
         ])
-        self._hashtags: list[str] = sent_cfg.get("hashtags", [
-            "#Bitcoin",
-            "#BTC",
-        ])
-        self._max_tweets: int = sent_cfg.get("max_tweets", 50)
+        self._max_posts: int = sent_cfg.get("max_posts", 50)
+        self._sort: str = sent_cfg.get("sort", "hot")
 
         # Anthropic config — prefer env var, fall back to config, then Streamlit secrets.
         anthropic_cfg = config.get("anthropic", {})
@@ -266,36 +328,34 @@ class SentimentAgent(BaseAgent):
         )
 
     def analyse(self) -> Signal:
-        """Fetch tweets, score sentiment via LLM, apply contrarian logic."""
-        if not self._bearer_token:
-            return self._fallback("No Twitter bearer_token configured")
+        """Fetch Reddit posts, score sentiment via LLM, apply contrarian logic."""
         if not self._api_key:
             return self._fallback("No Anthropic api_key configured")
 
-        fetcher = TwitterFetcher(self._bearer_token, max_results=self._max_tweets)
-        tweets = fetcher.search(self._accounts, self._hashtags)
+        fetcher = RedditFetcher(self._subreddits, max_posts=self._max_posts, sort=self._sort)
+        posts = fetcher.fetch()
 
-        if not tweets:
-            return self._fallback("No tweets returned from search")
+        if not posts:
+            return self._fallback("No Reddit posts returned")
 
-        llm_result = _score_via_llm(tweets, self._api_key, self._model, self._rate_limiter)
-        return self._build_signal(tweets, llm_result)
+        llm_result = _score_via_llm(posts, self._api_key, self._model, self._rate_limiter)
+        return self._build_signal(posts, llm_result)
 
-    def score_with_tweets(self, tweets: list[Tweet]) -> Signal:
-        """Score a pre-fetched list of tweets (for testing)."""
+    def score_with_posts(self, posts: list[RedditPost]) -> Signal:
+        """Score a pre-fetched list of Reddit posts (for testing)."""
         if not self._api_key:
             return self._fallback("No Anthropic api_key configured")
-        if not tweets:
-            return self._fallback("Empty tweet list")
-        llm_result = _score_via_llm(tweets, self._api_key, self._model, self._rate_limiter)
-        return self._build_signal(tweets, llm_result)
+        if not posts:
+            return self._fallback("Empty post list")
+        llm_result = _score_via_llm(posts, self._api_key, self._model, self._rate_limiter)
+        return self._build_signal(posts, llm_result)
 
-    def _build_signal(self, tweets: list[Tweet], llm: LLMSentiment) -> Signal:
+    def _build_signal(self, posts: list[RedditPost], llm: LLMSentiment) -> Signal:
         contrarian = _contrarian_score(llm.sentiment)
-        confidence = self._compute_confidence(llm, len(tweets))
+        confidence = self._compute_confidence(llm, len(posts))
 
         reasoning_parts = [
-            f"Tweets analysed: {len(tweets)}",
+            f"Reddit posts analysed: {len(posts)}",
             f"Raw sentiment: {llm.sentiment:+.2f} ({self._sentiment_label(llm.sentiment)})",
             f"LLM reasoning: {llm.reasoning}",
             f"Contrarian signal: {contrarian:+.2f}",
@@ -319,17 +379,12 @@ class SentimentAgent(BaseAgent):
         )
 
     @staticmethod
-    def _compute_confidence(llm: LLMSentiment, tweet_count: int) -> float:
+    def _compute_confidence(llm: LLMSentiment, post_count: int) -> float:
         """Confidence from LLM self-rating (50%), sample size (30%), strength (20%)."""
-        # LLM self-rated confidence.
         llm_conf = llm.confidence
-
-        # Sample size: 30+ tweets → 1.0, scales linearly below.
-        sample = min(tweet_count / 30.0, 1.0)
-
-        # Sentiment strength: extreme readings are more informative.
+        # Sample size: 25+ posts → 1.0, scales linearly below.
+        sample = min(post_count / 25.0, 1.0)
         strength = abs(llm.sentiment)
-
         raw = 0.50 * llm_conf + 0.30 * sample + 0.20 * strength
         return float(np.clip(raw, 0.0, 1.0))
 
