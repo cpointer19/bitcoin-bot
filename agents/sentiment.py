@@ -415,7 +415,7 @@ class SentimentAgent(BaseAgent):
         reasoning_parts = [
             f"Reddit posts analysed: {len(posts)}",
             f"Raw sentiment: {llm.sentiment:+.2f} ({self._sentiment_label(llm.sentiment)})",
-            f"LLM reasoning: {llm.reasoning}",
+            f"Claude's reasoning: {llm.reasoning}",
             f"Contrarian signal: {contrarian:+.2f}",
             f"Confidence: {confidence:.2f}",
         ]

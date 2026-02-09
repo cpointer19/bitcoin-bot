@@ -309,7 +309,7 @@ class GeopoliticalAgent(BaseAgent):
         reasoning_parts = [
             f"Headlines analysed: {len(headlines)}",
             f"Geopolitical score: {llm.score:+.2f}",
-            f"LLM reasoning: {llm.reasoning}",
+            f"Claude's reasoning: {llm.reasoning}",
             f"Confidence: {confidence:.2f}",
         ]
 
