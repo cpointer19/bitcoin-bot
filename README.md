@@ -10,7 +10,7 @@ Four agents each produce a **score** ([-1, +1]) and **confidence** ([0, 1]). The
 
 ```
 Reddit posts ────► Sentiment Agent  ──┐
-NewsAPI headlines ► Geopolitical Agent ┤
+Google News RSS ─► Geopolitical Agent ┤
 Kraken OHLCV ────► Technical Agent  ──┼──► Orchestrator ──► DCA Multiplier ──► Hyperliquid
 Halving + MVRV ──► Cycle Agent     ──┘        │                  │            (2x leveraged
                                          composite score    base $100 * Nx     perp longs)
@@ -57,10 +57,12 @@ Fetches up to 50 hot posts from r/Bitcoin, r/CryptoCurrency, and r/BitcoinMarket
 
 #### Geopolitical (15% weight)
 
-Fetches up to 30 headlines from NewsAPI for queries like "bitcoin regulation", "banking crisis", "currency devaluation", "capital controls crypto". Claude LLM scores the macro environment from -1 (hostile) to +1 (favorable for BTC).
+Fetches up to 30 headlines from Google News RSS for queries like "bitcoin regulation", "banking crisis", "currency devaluation", "capital controls crypto" (free, no credentials needed). Claude LLM scores the macro environment from -1 (hostile) to +1 (favorable for BTC).
 
 Positive factors: banking instability, currency devaluation, capital controls, regulatory clarity.
 Negative factors: crackdowns, bans, enforcement actions, central bank hawkishness.
+
+**Roadmap**: Scale to NewsAPI for richer headline data when budget permits (free tier is localhost-only, paid plan $449/mo).
 
 ### Orchestrator
 
@@ -115,8 +117,8 @@ To get these credentials:
 Configure remaining API keys in `config.yaml` or as environment variables:
 
 - **Anthropic** (`ANTHROPIC_API_KEY`) &mdash; Claude LLM for sentiment & geopolitical analysis
-- **NewsAPI** (`NEWSAPI_KEY`) &mdash; headlines for geopolitical agent
 - Reddit sentiment uses the public JSON API &mdash; no credentials needed
+- Google News RSS for geopolitical headlines &mdash; no credentials needed
 
 ## Usage
 

@@ -13,8 +13,8 @@ anthropic:
 # twitter:                    # TODO: Re-enable when API budget permits ($200/mo Basic plan)
 #   bearer_token: ""
 
-newsapi:
-  api_key: ""
+# newsapi:                    # TODO: Re-enable when budget permits (free tier is localhost-only, paid $449/mo)
+#   api_key: ""
 
 trading:
   symbol: "BTC/USDC:USDC"

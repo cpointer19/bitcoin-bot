@@ -1,4 +1,4 @@
-"""Geopolitical risk agent — NewsAPI headlines → Anthropic LLM scoring."""
+"""Geopolitical risk agent — Google News RSS headlines → Anthropic LLM scoring."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
 import anthropic
@@ -61,7 +62,7 @@ class Headline:
 
 
 # ---------------------------------------------------------------------------
-# News fetcher — NewsAPI.org (/v2/everything)
+# Google News RSS fetcher (active — free, no credentials needed)
 # ---------------------------------------------------------------------------
 
 # Default query topics that historically move BTC flows.
@@ -75,43 +76,91 @@ _DEFAULT_QUERIES = [
 ]
 
 
-class NewsFetcher:
-    """Pull recent English-language headlines from NewsAPI.org."""
+class GoogleNewsFetcher:
+    """Pull recent English-language headlines from Google News RSS."""
 
-    _BASE_URL = "https://newsapi.org/v2/everything"
+    _RSS_URL = "https://news.google.com/rss/search"
+    _USER_AGENT = "bitcoin-bot/1.0 (geopolitical analysis)"
 
-    def __init__(self, api_key: str, page_size: int = 20) -> None:
-        self._api_key = api_key
-        self._page_size = min(page_size, 100)
+    def __init__(self, max_headlines: int = 30) -> None:
+        self._max_headlines = max_headlines
+        self._session = requests.Session()
+        self._session.headers.update({"User-Agent": self._USER_AGENT})
 
     def fetch(self, queries: list[str]) -> list[Headline]:
-        """Run one API call with an OR-joined query and return headlines."""
-        combined = " OR ".join(f'"{q}"' for q in queries)
+        """Run one RSS search with an OR-joined query and return headlines."""
+        combined = " OR ".join(queries)
         headlines: list[Headline] = []
         try:
-            resp = requests.get(
-                self._BASE_URL,
+            resp = self._session.get(
+                self._RSS_URL,
                 params={
                     "q": combined,
-                    "language": "en",
-                    "sortBy": "publishedAt",
-                    "pageSize": self._page_size,
-                    "apiKey": self._api_key,
+                    "hl": "en-US",
+                    "gl": "US",
+                    "ceid": "US:en",
                 },
                 timeout=10,
             )
             resp.raise_for_status()
-            data = resp.json()
-            for article in data.get("articles", []):
+            root = ET.fromstring(resp.content)
+
+            for item in root.findall(".//item"):
+                if len(headlines) >= self._max_headlines:
+                    break
                 headlines.append(Headline(
-                    source=article.get("source", {}).get("name", "unknown"),
-                    title=article.get("title", ""),
-                    description=article.get("description") or "",
-                    published_at=article.get("publishedAt", ""),
+                    source=item.findtext("source", "unknown"),
+                    title=item.findtext("title", ""),
+                    description=item.findtext("description", ""),
+                    published_at=item.findtext("pubDate", ""),
                 ))
-        except (requests.RequestException, ValueError, KeyError) as exc:
-            logger.warning("NewsAPI fetch failed: %s", exc)
+        except (requests.RequestException, ET.ParseError, ValueError) as exc:
+            logger.warning("Google News RSS fetch failed: %s", exc)
         return headlines
+
+
+# ---------------------------------------------------------------------------
+# NewsAPI fetcher (disabled — free tier is localhost-only, paid plan $449/mo)
+# TODO: Re-enable NewsAPI when budget permits.
+# ---------------------------------------------------------------------------
+#
+# class NewsFetcher:
+#     """Pull recent English-language headlines from NewsAPI.org."""
+#
+#     _BASE_URL = "https://newsapi.org/v2/everything"
+#
+#     def __init__(self, api_key: str, page_size: int = 20) -> None:
+#         self._api_key = api_key
+#         self._page_size = min(page_size, 100)
+#
+#     def fetch(self, queries: list[str]) -> list[Headline]:
+#         """Run one API call with an OR-joined query and return headlines."""
+#         combined = " OR ".join(f'"{q}"' for q in queries)
+#         headlines: list[Headline] = []
+#         try:
+#             resp = requests.get(
+#                 self._BASE_URL,
+#                 params={
+#                     "q": combined,
+#                     "language": "en",
+#                     "sortBy": "publishedAt",
+#                     "pageSize": self._page_size,
+#                     "apiKey": self._api_key,
+#                 },
+#                 timeout=10,
+#             )
+#             resp.raise_for_status()
+#             data = resp.json()
+#             for article in data.get("articles", []):
+#                 headlines.append(Headline(
+#                     source=article.get("source", {}).get("name", "unknown"),
+#                     title=article.get("title", ""),
+#                     description=article.get("description") or "",
+#                     published_at=article.get("publishedAt", ""),
+#                 ))
+#         except (requests.RequestException, ValueError, KeyError) as exc:
+#             logger.warning("NewsAPI fetch failed: %s", exc)
+#         return headlines
 
 
 # ---------------------------------------------------------------------------
@@ -207,17 +256,6 @@ class GeopoliticalAgent(BaseAgent):
         super().__init__(config)
         geo_cfg = config.get("agents", {}).get("geopolitical", {})
 
-        # NewsAPI config — prefer env var, fall back to config, then Streamlit secrets.
-        self._newsapi_key: str = (
-            os.getenv("NEWSAPI_KEY", "")
-            or config.get("newsapi", {}).get("api_key", "")
-        )
-        if not self._newsapi_key:
-            try:
-                import streamlit as st
-                self._newsapi_key = st.secrets["NEWSAPI_KEY"]
-            except Exception:
-                pass
         self._queries: list[str] = geo_cfg.get("queries", _DEFAULT_QUERIES)
         self._max_headlines: int = geo_cfg.get("max_headlines", 30)
 
@@ -244,16 +282,14 @@ class GeopoliticalAgent(BaseAgent):
 
     def analyse(self) -> Signal:
         """Fetch headlines, score via LLM, return signal."""
-        if not self._newsapi_key:
-            return self._fallback("No newsapi.api_key configured")
         if not self._api_key:
             return self._fallback("No anthropic.api_key configured")
 
-        fetcher = NewsFetcher(self._newsapi_key, page_size=self._max_headlines)
+        fetcher = GoogleNewsFetcher(max_headlines=self._max_headlines)
         headlines = fetcher.fetch(self._queries)
 
         if not headlines:
-            return self._fallback("No headlines returned from NewsAPI")
+            return self._fallback("No headlines returned from Google News")
 
         llm = _score_via_llm(headlines, self._api_key, self._model, self._rate_limiter)
         return self._build_signal(headlines, llm)
