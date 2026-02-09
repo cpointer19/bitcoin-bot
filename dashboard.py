@@ -26,6 +26,7 @@ from execution.schedule import (
     load_schedule, ensure_todays_entry, mark_missed_entries,
     confirm_scheduled_buy, get_today_pt, next_pay_date,
 )
+from execution.greeting import get_daily_greeting
 from models.signal import Signal
 
 # ---------------------------------------------------------------------------
@@ -311,6 +312,29 @@ if _wallet:
         _r2[2].metric("Available", _v(f"${_stats['available']:,.2f}"))
         _r2[3].metric("Margin Used", _v(f"${_stats['margin_used']:,.2f}"))
         st.markdown("---")
+
+# ---- Daily briefing from the bot ----
+_next_buy_label = next_pay_date().strftime("%b %d, %Y")
+_greeting_stats = locals().get("_stats") if _wallet else None
+_greeting_msg = get_daily_greeting(
+    stats=_greeting_stats,
+    config=config,
+    next_buy_label=_next_buy_label,
+)
+st.markdown(
+    "<div style='"
+    "background-color: #0e1117; "
+    "border: 1px solid #2a2d35; "
+    "border-radius: 8px; "
+    "padding: 1.2rem 1.5rem; "
+    "font-size: 1.05rem; "
+    "line-height: 1.7; "
+    "color: #c9d1d9; "
+    "white-space: pre-wrap; "
+    "margin-bottom: 1rem;"
+    f"'>{_greeting_msg}</div>",
+    unsafe_allow_html=True,
+)
 
 # ---- Schedule ledger: auto-generate today's entry & mark stale as missed ----
 mark_missed_entries()
