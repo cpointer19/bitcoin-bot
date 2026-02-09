@@ -259,6 +259,16 @@ st.markdown(
     button[kind="primary"]:hover {
         background-color: #2380b5 !important;
     }
+    /* Larger tab fonts; active tab even bigger */
+    .stTabs [data-baseweb="tab-list"] button {
+        font-size: 1.15rem !important;
+        font-weight: 500 !important;
+        padding: 0.6rem 1rem !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -342,8 +352,8 @@ mark_missed_entries()
 ensure_todays_entry(base_dca_usd=base_dca)
 
 # ---- Tab layout ----
-tab_signals, tab_chart, tab_trades, tab_schedule, tab_strategy = st.tabs(
-    ["Signals & Decision", "Historical Chart", "Trade Log", "Scheduled Buys", "Strategy"]
+tab_signals, tab_strategy, tab_chart, tab_trades, tab_schedule = st.tabs(
+    ["Signals & Decision", "Strategy", "Historical Chart", "Trade Log", "Scheduled Buys"]
 )
 
 # ===================================================================
