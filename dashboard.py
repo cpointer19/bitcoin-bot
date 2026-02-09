@@ -108,14 +108,18 @@ def fetch_account_stats(wallet: str) -> dict | None:
 
         open_pnl = 0.0
         liquidation_px = None
+        notional = None
         for p in state.get("assetPositions", []):
             pos = p.get("position", {})
             open_pnl += float(pos.get("unrealizedPnl", 0))
-            # Grab BTC liquidation price if a position exists
+            # Grab BTC position details
             if pos.get("coin") == "BTC" and float(pos.get("szi", 0)) != 0:
                 liq = pos.get("liquidationPx")
                 if liq is not None:
                     liquidation_px = float(liq)
+                entry_px = float(pos.get("entryPx", 0))
+                size = abs(float(pos.get("szi", 0)))
+                notional = entry_px * size
 
         # portfolio is a list of [period_name, data] pairs
         all_time: dict = {}
@@ -146,6 +150,7 @@ def fetch_account_stats(wallet: str) -> dict | None:
             "total_pnl": total_pnl,
             "volume": volume,
             "liquidation_px": liquidation_px,
+            "notional": notional,
         }
     except Exception:
         return None
@@ -230,21 +235,28 @@ _wallet = _get_wallet_address()
 if _wallet:
     _stats = fetch_account_stats(_wallet)
     if _stats:
-        _acols = st.columns(7)
-        _acols[0].metric("Equity", f"${_stats['equity']:,.2f}")
-        _acols[1].metric("Available", f"${_stats['available']:,.2f}")
-        _acols[2].metric("Margin Used", f"${_stats['margin_used']:,.2f}")
-        _acols[3].metric("Open PnL", f"${_stats['open_pnl']:+,.2f}")
-        _acols[4].metric(
+        # Row 1: position & PnL
+        _r1 = st.columns(4)
+        if _stats["notional"] is not None:
+            _r1[0].metric("Position Value", f"${_stats['notional']:,.2f}")
+        else:
+            _r1[0].metric("Position Value", "—", help="No open BTC position")
+        _r1[1].metric("Open PnL", f"${_stats['open_pnl']:+,.2f}")
+        _r1[2].metric(
             "PnL (2026)",
             f"${_stats['total_pnl']:+,.2f}",
             help="Cumulative PnL starting from Jan 1, 2026",
         )
-        _acols[5].metric("Volume", f"${_stats['volume']:,.0f}")
         if _stats["liquidation_px"] is not None:
-            _acols[6].metric("Liq. Price", f"${_stats['liquidation_px']:,.0f}")
+            _r1[3].metric("Liq. Price", f"${_stats['liquidation_px']:,.0f}")
         else:
-            _acols[6].metric("Liq. Price", "—", help="No open BTC position")
+            _r1[3].metric("Liq. Price", "—", help="No open BTC position")
+        # Row 2: account details
+        _r2 = st.columns(4)
+        _r2[0].metric("Equity", f"${_stats['equity']:,.2f}")
+        _r2[1].metric("Available", f"${_stats['available']:,.2f}")
+        _r2[2].metric("Margin Used", f"${_stats['margin_used']:,.2f}")
+        _r2[3].metric("Volume", f"${_stats['volume']:,.0f}")
         st.markdown("---")
 
 # ---- Tab layout ----
