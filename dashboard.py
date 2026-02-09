@@ -106,10 +106,16 @@ def fetch_account_stats(wallet: str) -> dict | None:
         withdrawable = float(state.get("withdrawable", 0))
         margin_used = float(margin.get("totalMarginUsed", 0))
 
-        open_pnl = sum(
-            float(p.get("position", {}).get("unrealizedPnl", 0))
-            for p in state.get("assetPositions", [])
-        )
+        open_pnl = 0.0
+        liquidation_px = None
+        for p in state.get("assetPositions", []):
+            pos = p.get("position", {})
+            open_pnl += float(pos.get("unrealizedPnl", 0))
+            # Grab BTC liquidation price if a position exists
+            if pos.get("coin") == "BTC" and float(pos.get("szi", 0)) != 0:
+                liq = pos.get("liquidationPx")
+                if liq is not None:
+                    liquidation_px = float(liq)
 
         # portfolio is a list of [period_name, data] pairs
         all_time: dict = {}
@@ -139,6 +145,7 @@ def fetch_account_stats(wallet: str) -> dict | None:
             "open_pnl": open_pnl,
             "total_pnl": total_pnl,
             "volume": volume,
+            "liquidation_px": liquidation_px,
         }
     except Exception:
         return None
@@ -206,23 +213,6 @@ for name, acfg in agents_cfg.items():
     st.sidebar.text(f"  {name:<15} {w:.0f}%")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Account**")
-_wallet = _get_wallet_address()
-if _wallet:
-    _stats = fetch_account_stats(_wallet)
-    if _stats:
-        st.sidebar.metric("Equity", f"${_stats['equity']:,.2f}")
-        st.sidebar.metric("Available", f"${_stats['available']:,.2f}")
-        st.sidebar.metric("Margin Used", f"${_stats['margin_used']:,.2f}")
-        st.sidebar.metric("Open PnL", f"${_stats['open_pnl']:+,.2f}")
-        st.sidebar.metric("PnL (2026)", f"${_stats['total_pnl']:+,.2f}", help="Cumulative PnL starting from Jan 1, 2026")
-        st.sidebar.metric("Volume", f"${_stats['volume']:,.0f}")
-    else:
-        st.sidebar.warning("Could not fetch account data")
-else:
-    st.sidebar.info("Set HYPERLIQUID_WALLET_ADDRESS to see account stats")
-
-st.sidebar.markdown("---")
 
 # ---------------------------------------------------------------------------
 # Main content
@@ -231,6 +221,31 @@ st.sidebar.markdown("---")
 _title_col, _btn_col = st.columns([3, 1])
 _title_col.title("BTC Bot")
 run_now = _btn_col.button("Run Analysis Now", use_container_width=True)
+
+# ---------------------------------------------------------------------------
+# Account overview (top of page)
+# ---------------------------------------------------------------------------
+
+_wallet = _get_wallet_address()
+if _wallet:
+    _stats = fetch_account_stats(_wallet)
+    if _stats:
+        _acols = st.columns(7)
+        _acols[0].metric("Equity", f"${_stats['equity']:,.2f}")
+        _acols[1].metric("Available", f"${_stats['available']:,.2f}")
+        _acols[2].metric("Margin Used", f"${_stats['margin_used']:,.2f}")
+        _acols[3].metric("Open PnL", f"${_stats['open_pnl']:+,.2f}")
+        _acols[4].metric(
+            "PnL (2026)",
+            f"${_stats['total_pnl']:+,.2f}",
+            help="Cumulative PnL starting from Jan 1, 2026",
+        )
+        _acols[5].metric("Volume", f"${_stats['volume']:,.0f}")
+        if _stats["liquidation_px"] is not None:
+            _acols[6].metric("Liq. Price", f"${_stats['liquidation_px']:,.0f}")
+        else:
+            _acols[6].metric("Liq. Price", "—", help="No open BTC position")
+        st.markdown("---")
 
 # ---- Tab layout ----
 tab_signals, tab_chart, tab_trades = st.tabs(["Signals & Decision", "Historical Chart", "Trade Log"])
