@@ -128,8 +128,8 @@ def fetch_account_stats(wallet: str) -> dict | None:
                 all_time = item[1]
                 break
         pnl_history = all_time.get("pnlHistory", [])
-        # PnL since Jan 1 2026: last cumulative value minus value at cutoff
-        _cutoff_ms = 1767225600000  # 2026-01-01T00:00:00Z
+        # PnL since Feb 8 2026 (bot birth date)
+        _cutoff_ms = 1770508800000  # 2026-02-08T00:00:00Z
         if pnl_history:
             # Find cumulative PnL at the cutoff (last entry before cutoff)
             baseline = 0.0
@@ -269,16 +269,16 @@ if _wallet:
             _r1[0].metric("Position Value", "—", help="No open BTC position")
         _r1[1].metric("Open PnL", _v(f"${_stats['open_pnl']:+,.2f}"))
         _r1[2].metric(
-            "PnL (2026)",
+            "All-Time PnL",
             _v(f"${_stats['total_pnl']:+,.2f}"),
-            help="Cumulative PnL starting from Jan 1, 2026",
+            help="Cumulative PnL since Feb 8, 2026 — the day this bot was born",
         )
         if _stats["liquidation_px"] is not None:
             _r1[3].metric("Liq. Price", _v(f"${_stats['liquidation_px']:,.0f}"))
         else:
             _r1[3].metric("Liq. Price", "—", help="No open BTC position")
         # Row 2: price & account details
-        _r2 = st.columns(5)
+        _r2 = st.columns(4)
         if _stats["btc_price"] is not None:
             _r2[0].metric("BTC Price", f"${_stats['btc_price']:,.2f}")  # price is public, never masked
         else:
@@ -286,7 +286,6 @@ if _wallet:
         _r2[1].metric("Equity", _v(f"${_stats['equity']:,.2f}"))
         _r2[2].metric("Available", _v(f"${_stats['available']:,.2f}"))
         _r2[3].metric("Margin Used", _v(f"${_stats['margin_used']:,.2f}"))
-        _r2[4].metric("Volume", _v(f"${_stats['volume']:,.0f}"))
         st.markdown("---")
 
 # ---- Tab layout ----
