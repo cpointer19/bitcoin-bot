@@ -237,6 +237,7 @@ for name, acfg in agents_cfg.items():
     st.sidebar.text(f"  {name:<15} {w:.0f}%")
 
 st.sidebar.markdown("---")
+st.sidebar.markdown("[GitHub Repo](https://github.com/cpointer19/bitcoin-bot)")
 
 # ---------------------------------------------------------------------------
 # Main content
