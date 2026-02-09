@@ -246,28 +246,190 @@ st.sidebar.markdown("[GitHub Repo](https://github.com/cpointer19/bitcoin-bot)")
 st.markdown(
     """
     <style>
-    /* Gold-bordered Run Analysis button */
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    /* ── Global ── */
+    html, body, .stApp, [data-testid="stAppViewContainer"] {
+        font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace !important;
+    }
+    .stApp {
+        background-color: #0a0a0f !important;
+    }
+    hr {
+        border-color: #1a1a25 !important;
+        box-shadow: 0 0 6px #f7931a11;
+    }
+
+    /* ── Title glow ── */
+    .stApp h1 {
+        color: #f7931a !important;
+        text-shadow: 0 0 20px #f7931a44, 0 0 40px #f7931a22;
+        letter-spacing: 0.05em;
+    }
+
+    /* ── Sidebar ── */
+    [data-testid="stSidebar"] {
+        background-color: #08080d !important;
+        border-right: 1px solid #f7931a33 !important;
+    }
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #f7931a !important;
+    }
+    [data-testid="stSidebar"] .stMarkdown p strong {
+        color: #f7931a99 !important;
+    }
+    [data-testid="stSidebar"] a {
+        color: #f7931a !important;
+        text-decoration: none;
+    }
+    [data-testid="stSidebar"] a:hover {
+        text-shadow: 0 0 8px #f7931a66;
+    }
+
+    /* ── Metric cards ── */
+    [data-testid="stMetric"] {
+        background: #111118 !important;
+        border: 1px solid #1a1a25 !important;
+        border-top: 2px solid #f7931a33 !important;
+        border-radius: 6px !important;
+        padding: 0.8rem 1rem !important;
+    }
+    [data-testid="stMetric"] label {
+        color: #666 !important;
+        text-transform: uppercase;
+        font-size: 0.7rem !important;
+        letter-spacing: 0.08em;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {
+        color: #e0e0e0 !important;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricDelta"] {
+        color: #f7931a !important;
+    }
+
+    /* ── Primary button (Run Analysis) ── */
     button[kind="primary"] {
-        border: 2px solid #FFD700 !important;
-        background-color: #1a6fa0 !important;
-        color: #ffffff !important;
-        font-size: 1.1rem !important;
+        background: transparent !important;
+        border: 1px solid #f7931a !important;
+        color: #f7931a !important;
+        font-size: 1.05rem !important;
         font-weight: 600 !important;
-        padding: 0.6rem 1.2rem !important;
+        font-family: "JetBrains Mono", monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.12em !important;
+        padding: 0.7rem 1.4rem !important;
         min-height: 3rem !important;
+        transition: all 0.3s ease !important;
     }
     button[kind="primary"]:hover {
-        background-color: #2380b5 !important;
+        background: #f7931a18 !important;
+        box-shadow: 0 0 20px #f7931a44, 0 0 40px #f7931a22 !important;
+        border-color: #f7931a !important;
     }
-    /* Larger tab fonts; active tab even bigger */
+
+    /* ── Secondary buttons (Execute Trade, Hide/Show) ── */
+    button[kind="secondary"] {
+        background: transparent !important;
+        border: 1px solid #2a2d35 !important;
+        color: #c0c8d0 !important;
+        font-family: "JetBrains Mono", monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.08em !important;
+        font-size: 0.85rem !important;
+        transition: all 0.3s ease !important;
+    }
+    button[kind="secondary"]:hover {
+        border-color: #f7931a66 !important;
+        box-shadow: 0 0 12px #f7931a22 !important;
+        color: #f7931a !important;
+    }
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] {
+        border-bottom: 1px solid #1a1a25 !important;
+        gap: 0 !important;
+    }
     .stTabs [data-baseweb="tab-list"] button {
-        font-size: 1.15rem !important;
+        font-family: "JetBrains Mono", monospace !important;
+        font-size: 1.05rem !important;
         font-weight: 500 !important;
-        padding: 0.6rem 1rem !important;
+        color: #555 !important;
+        padding: 0.7rem 1.2rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
+        border-bottom: 2px solid transparent !important;
+        transition: all 0.2s ease !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button:hover {
+        color: #f7931a99 !important;
     }
     .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
-        font-size: 1.3rem !important;
+        font-size: 1.2rem !important;
         font-weight: 700 !important;
+        color: #f7931a !important;
+        border-bottom: 2px solid #f7931a !important;
+        text-shadow: 0 0 10px #f7931a33;
+    }
+
+    /* ── Expanders ── */
+    [data-testid="stExpander"] {
+        border: 1px solid #1a1a25 !important;
+        border-radius: 6px !important;
+        background: #0d0d14 !important;
+        transition: border-color 0.2s ease;
+    }
+    [data-testid="stExpander"]:hover {
+        border-color: #f7931a44 !important;
+    }
+    [data-testid="stExpander"] summary span {
+        font-family: "JetBrains Mono", monospace !important;
+    }
+
+    /* ── Text inputs ── */
+    .stTextInput input {
+        background: #0d0d14 !important;
+        border: 1px solid #1a1a25 !important;
+        color: #c0c8d0 !important;
+        font-family: "JetBrains Mono", monospace !important;
+    }
+    .stTextInput input:focus {
+        border-color: #f7931a !important;
+        box-shadow: 0 0 8px #f7931a33 !important;
+    }
+
+    /* ── Dataframes ── */
+    .stDataFrame {
+        border: 1px solid #1a1a25 !important;
+        border-radius: 6px !important;
+    }
+
+    /* ── Alert boxes (info, warning, success, error) ── */
+    [data-testid="stAlert"] {
+        background: #0d0d14 !important;
+        border-radius: 4px !important;
+    }
+
+    /* ── Subheaders ── */
+    h2, h3 {
+        color: #c0c8d0 !important;
+        letter-spacing: 0.04em;
+    }
+
+    /* ── Captions ── */
+    .stCaption, small {
+        color: #555 !important;
+    }
+
+    /* ── Markdown links ── */
+    a {
+        color: #f7931a !important;
+    }
+
+    /* ── Spinner ── */
+    .stSpinner > div {
+        border-top-color: #f7931a !important;
     }
     </style>
     """,
@@ -334,13 +496,17 @@ _greeting_msg = get_daily_greeting(
 )
 st.markdown(
     "<div style='"
-    "background-color: #0e1117; "
-    "border: 1px solid #2a2d35; "
-    "border-radius: 8px; "
+    "background: #0a0a0f; "
+    "border-left: 3px solid #f7931a; "
+    "border-top: 1px solid #f7931a22; "
+    "border-right: 1px solid #1a1a25; "
+    "border-bottom: 1px solid #1a1a25; "
+    "border-radius: 4px; "
     "padding: 1.2rem 1.5rem; "
-    "font-size: 1.05rem; "
-    "line-height: 1.7; "
-    "color: #c9d1d9; "
+    "font-family: \"JetBrains Mono\", monospace; "
+    "font-size: 0.95rem; "
+    "line-height: 1.8; "
+    "color: #c0c8d0; "
     "white-space: pre-wrap; "
     "margin-bottom: 1rem;"
     f"'>{_greeting_msg}</div>",
