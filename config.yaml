@@ -63,6 +63,6 @@ agents:
     mvrv_live: true
 
 orchestrator:
-  base_dca_usd: 30
+  base_dca_usd: 200
   min_confidence: 0.0
   poll_interval_seconds: 300

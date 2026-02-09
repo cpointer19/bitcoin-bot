@@ -24,7 +24,7 @@ from execution.executor import Executor, OrderResult
 from execution.trade_log import TradeRecord, append_trade, load_trade_log
 from execution.schedule import (
     load_schedule, ensure_todays_entry, mark_missed_entries,
-    confirm_scheduled_buy, get_today_pt,
+    confirm_scheduled_buy, get_today_pt, next_pay_date,
 )
 from models.signal import Signal
 
@@ -575,13 +575,14 @@ with tab_trades:
 # ===================================================================
 
 with tab_schedule:
-    st.subheader("Daily Buy Schedule")
-    st.caption("A new entry appears each day after 9:00 AM PT.")
+    st.subheader("Payday Buy Schedule")
+    st.caption("Buys scheduled on the 15th and last day of each month (9:00 AM PT). Next buy: "
+               f"**{next_pay_date().strftime('%b %d, %Y')}**")
 
     _schedule = load_schedule()
 
     if not _schedule:
-        st.info("No scheduled buys yet. The first entry will appear after 9:00 AM PT.")
+        st.info("No scheduled buys yet. The first entry will appear on Feb 15, 2025 after 9:00 AM PT.")
     else:
         _schedule_sorted = sorted(_schedule, key=lambda e: e["date"], reverse=True)
         _schedule_display = _schedule_sorted[:30]
@@ -622,7 +623,7 @@ with tab_schedule:
         _missed = [e for e in _schedule if e["status"] == "missed"]
 
         _s1, _s2, _s3, _s4 = st.columns(4)
-        _s1.metric("Total Days", len(_schedule))
+        _s1.metric("Total Pay Dates", len(_schedule))
         _s2.metric("Confirmed", len(_confirmed))
         _s3.metric("Pending", len(_pending))
         _s4.metric("Missed", len(_missed))

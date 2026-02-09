@@ -1,10 +1,11 @@
-"""Daily scheduled buy ledger — tracks planned 9am PT buys."""
+"""Payday scheduled buy ledger — tracks planned buys on the 15th and last day of each month."""
 
 from __future__ import annotations
 
+import calendar
 import json
 from dataclasses import asdict, dataclass, fields
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -12,6 +13,7 @@ from zoneinfo import ZoneInfo
 _SCHEDULE_PATH = Path("execution/scheduled_buys.json")
 _TZ_PT = ZoneInfo("America/Los_Angeles")
 _PLANNED_HOUR = 9  # 9 AM Pacific
+_FIRST_DATE = date(2025, 2, 15)  # First scheduled buy
 
 
 @dataclass
@@ -70,34 +72,128 @@ def is_past_planned_time() -> bool:
     return datetime.now(_TZ_PT).hour >= _PLANNED_HOUR
 
 
+def _last_day_of_month(year: int, month: int) -> int:
+    """Return the last calendar day for the given year/month."""
+    return calendar.monthrange(year, month)[1]
+
+
+def _is_pay_date(d: date) -> bool:
+    """True if `d` is the 15th or the last day of its month."""
+    return d.day == 15 or d.day == _last_day_of_month(d.year, d.month)
+
+
+def _pay_dates_through(end: date) -> list[date]:
+    """Generate all pay dates from _FIRST_DATE up to and including `end`."""
+    dates: list[date] = []
+    current = _FIRST_DATE
+    while current <= end:
+        if _is_pay_date(current):
+            dates.append(current)
+            # Jump to next candidate: if we're on 15th, go to last day;
+            # if on last day, go to 15th of next month.
+            if current.day == 15:
+                current = current.replace(
+                    day=_last_day_of_month(current.year, current.month)
+                )
+            else:
+                # Last day → 15th of next month
+                if current.month == 12:
+                    current = date(current.year + 1, 1, 15)
+                else:
+                    current = date(current.year, current.month + 1, 15)
+        else:
+            # Shouldn't happen if _FIRST_DATE is a pay date, but handle it
+            current = current.replace(day=15) if current.day < 15 else current.replace(
+                day=_last_day_of_month(current.year, current.month)
+            )
+    return dates
+
+
+def next_pay_date() -> date:
+    """Return the next upcoming pay date (today counts if not yet past planned hour)."""
+    today = date.fromisoformat(get_today_pt())
+    # Check today first
+    if _is_pay_date(today) and not is_past_planned_time():
+        return today
+    # Next candidates
+    d = today
+    for _ in range(62):  # at most 2 months ahead
+        d = d.replace(day=d.day)  # no-op, just iterate
+        # Check 15th of current month
+        if d.day < 15:
+            candidate = d.replace(day=15)
+            if candidate > today:
+                return candidate
+        # Check last day of current month
+        last = _last_day_of_month(d.year, d.month)
+        candidate = d.replace(day=last)
+        if candidate > today:
+            return candidate
+        # Move to next month
+        if d.month == 12:
+            d = date(d.year + 1, 1, 1)
+        else:
+            d = date(d.year, d.month + 1, 1)
+    return today  # fallback
+
+
 # ---------------------------------------------------------------------------
 # Schedule generation
 # ---------------------------------------------------------------------------
 
-def ensure_todays_entry(
+def ensure_schedule_entries(
     base_dca_usd: float,
     path: Path = _SCHEDULE_PATH,
 ) -> ScheduledBuy | None:
-    """Create today's pending entry if past 9am PT and none exists yet."""
-    today = get_today_pt()
-    entries = load_schedule(path)
+    """Create pending entries for all pay dates up to today (if past 9am PT).
 
-    for e in entries:
-        if e["date"] == today:
-            return _dict_to_entry(e)
+    Returns today's entry if today is a pay date, else None.
+    """
+    today = date.fromisoformat(get_today_pt())
+    now_past_hour = is_past_planned_time()
 
-    if not is_past_planned_time():
+    # Generate pay dates through today (only if past planned hour for today)
+    end = today if now_past_hour else today.replace(day=max(today.day - 1, 1))
+    if end < _FIRST_DATE:
         return None
 
-    new = ScheduledBuy(
-        date=today,
-        planned_time="09:00 PT",
-        status="pending",
-        planned_amount_usd=base_dca_usd,
-    )
-    entries.append(new.to_dict())
-    save_schedule(entries, path)
-    return new
+    pay_dates = _pay_dates_through(end)
+    if not pay_dates:
+        return None
+
+    entries = load_schedule(path)
+    existing_dates = {e["date"] for e in entries}
+    changed = False
+    todays_entry = None
+
+    for pd in pay_dates:
+        pd_str = pd.isoformat()
+        if pd_str not in existing_dates:
+            new = ScheduledBuy(
+                date=pd_str,
+                planned_time="09:00 PT",
+                status="pending",
+                planned_amount_usd=base_dca_usd,
+            )
+            entries.append(new.to_dict())
+            existing_dates.add(pd_str)
+            changed = True
+
+        if pd == today:
+            # Find and return today's entry
+            for e in entries:
+                if e["date"] == pd_str:
+                    todays_entry = _dict_to_entry(e)
+                    break
+
+    if changed:
+        save_schedule(entries, path)
+
+    return todays_entry
+
+
+# Keep old name as alias for backward compat in dashboard
+ensure_todays_entry = ensure_schedule_entries
 
 
 def mark_missed_entries(path: Path = _SCHEDULE_PATH) -> None:
