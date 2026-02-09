@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 
 import anthropic
 import numpy as np
 import requests
+
+try:
+    from dotenv import load_dotenv
+    from pathlib import Path
+    _env_path = Path(__file__).resolve().parent.parent / ".env"
+    load_dotenv(_env_path)
+except ImportError:
+    pass
 
 from models.signal import Signal
 from .base import BaseAgent
@@ -198,14 +207,32 @@ class GeopoliticalAgent(BaseAgent):
         super().__init__(config)
         geo_cfg = config.get("agents", {}).get("geopolitical", {})
 
-        # NewsAPI config.
-        self._newsapi_key: str = config.get("newsapi", {}).get("api_key", "")
+        # NewsAPI config — prefer env var, fall back to config, then Streamlit secrets.
+        self._newsapi_key: str = (
+            os.getenv("NEWSAPI_KEY", "")
+            or config.get("newsapi", {}).get("api_key", "")
+        )
+        if not self._newsapi_key:
+            try:
+                import streamlit as st
+                self._newsapi_key = st.secrets["NEWSAPI_KEY"]
+            except Exception:
+                pass
         self._queries: list[str] = geo_cfg.get("queries", _DEFAULT_QUERIES)
         self._max_headlines: int = geo_cfg.get("max_headlines", 30)
 
-        # Anthropic config (shared top-level section).
+        # Anthropic config — prefer env var, fall back to config, then Streamlit secrets.
         anthropic_cfg = config.get("anthropic", {})
-        self._api_key: str = anthropic_cfg.get("api_key", "")
+        self._api_key: str = (
+            os.getenv("ANTHROPIC_API_KEY", "")
+            or anthropic_cfg.get("api_key", "")
+        )
+        if not self._api_key:
+            try:
+                import streamlit as st
+                self._api_key = st.secrets["ANTHROPIC_API_KEY"]
+            except Exception:
+                pass
         self._model: str = anthropic_cfg.get("model", "claude-haiku-4-5-20251001")
 
         # Rate limiting: default 10 LLM calls per 60 s.

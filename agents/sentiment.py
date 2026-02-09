@@ -244,9 +244,18 @@ class SentimentAgent(BaseAgent):
         ])
         self._max_tweets: int = sent_cfg.get("max_tweets", 50)
 
-        # Anthropic config.
+        # Anthropic config — prefer env var, fall back to config, then Streamlit secrets.
         anthropic_cfg = config.get("anthropic", {})
-        self._api_key: str = anthropic_cfg.get("api_key", "")
+        self._api_key: str = (
+            os.getenv("ANTHROPIC_API_KEY", "")
+            or anthropic_cfg.get("api_key", "")
+        )
+        if not self._api_key:
+            try:
+                import streamlit as st
+                self._api_key = st.secrets["ANTHROPIC_API_KEY"]
+            except Exception:
+                pass
         self._model: str = anthropic_cfg.get("model", "claude-haiku-4-5-20251001")
 
         # Rate limiting: default 10 LLM calls per 60s.
