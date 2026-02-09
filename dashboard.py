@@ -285,7 +285,11 @@ with tab_signals:
                 c1, c2 = st.columns(2)
                 c1.markdown(f"**Score:** {sig.score:+.4f}")
                 c2.markdown(f"**Confidence:** {_conf_bar(sig.confidence)}")
-                st.code(sig.reasoning, language=None)
+                st.markdown(
+                    f'<div style="white-space:pre-wrap; word-wrap:break-word; '
+                    f'font-size:0.85rem; line-height:1.5;">{sig.reasoning}</div>',
+                    unsafe_allow_html=True,
+                )
 
         st.markdown("---")
 
