@@ -414,11 +414,15 @@ st.markdown(
     [data-testid="stExpander"]:hover {
         border-color: #f7931a44 !important;
     }
-    [data-testid="stExpander"] summary span {
+    [data-testid="stExpander"] summary {
         font-family: "JetBrains Mono", monospace !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
         letter-spacing: 0.02em !important;
+    }
+    /* Hide the duplicate shadow span Streamlit uses for sizing */
+    [data-testid="stExpander"] summary span[style*="absolute"] {
+        display: none !important;
     }
 
     /* ── Text inputs ── */
