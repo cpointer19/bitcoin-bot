@@ -501,7 +501,7 @@ if _wallet:
     )
 
 # ---------------------------------------------------------------------------
-# Account overview (top of page)
+# Account overview (top of page) — sticky header
 # ---------------------------------------------------------------------------
 if _wallet:
     _stats = fetch_account_stats(_wallet)
@@ -510,6 +510,7 @@ if _wallet:
             """Return formatted value or mask."""
             return _mask if _hidden else fmt
 
+        st.markdown('<div id="sticky-account-anchor"></div>', unsafe_allow_html=True)
         # Row 1: position & PnL
         _r1 = st.columns(4)
         if _stats["notional"] is not None:
@@ -535,7 +536,52 @@ if _wallet:
         _r2[1].metric("Equity", _v(_fmt(_stats['equity'])))
         _r2[2].metric("Available", _v(_fmt(_stats['available'])))
         _r2[3].metric("Margin Used", _v(_fmt(_stats['margin_used'])))
+        st.markdown('<div id="sticky-account-end"></div>', unsafe_allow_html=True)
         st.markdown("---")
+
+        # JS: wrap account metrics in a sticky container
+        st.html("""
+        <script>
+        (function() {
+            const anchor = document.getElementById('sticky-account-anchor');
+            const end = document.getElementById('sticky-account-end');
+            if (!anchor || !end) return;
+
+            // Walk up to the Streamlit block container
+            let startBlock = anchor.closest('[data-testid="stVerticalBlock"]')
+                          || anchor.parentElement;
+
+            // Collect sibling elements between anchor and end
+            const wrapper = document.createElement('div');
+            wrapper.id = 'sticky-account-wrapper';
+            wrapper.style.cssText =
+                'position: sticky; top: 0; z-index: 999; ' +
+                'background: #0a0a0f; padding: 0.5rem 0 0.2rem 0; ' +
+                'border-bottom: 1px solid #1a1a25; ' +
+                'box-shadow: 0 4px 12px rgba(0,0,0,0.5);';
+
+            // Find the common parent that holds both rows
+            const anchorParent = anchor.closest('[data-testid="element-container"]');
+            const endParent = end.closest('[data-testid="element-container"]');
+            if (!anchorParent || !endParent) return;
+
+            const parent = anchorParent.parentElement;
+            if (!parent) return;
+
+            // Gather all siblings between anchor and end (inclusive)
+            const children = Array.from(parent.children);
+            const startIdx = children.indexOf(anchorParent);
+            const endIdx = children.indexOf(endParent);
+            if (startIdx < 0 || endIdx < 0) return;
+
+            // Insert wrapper before the first element
+            parent.insertBefore(wrapper, anchorParent);
+            for (let i = startIdx; i <= endIdx; i++) {
+                wrapper.appendChild(children[i]);
+            }
+        })();
+        </script>
+        """)
 
 # ---- Daily briefing from the bot ----
 _next_buy_label = next_pay_date().strftime("%b %d, %Y")
