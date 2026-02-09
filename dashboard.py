@@ -342,8 +342,8 @@ mark_missed_entries()
 ensure_todays_entry(base_dca_usd=base_dca)
 
 # ---- Tab layout ----
-tab_signals, tab_chart, tab_trades, tab_schedule = st.tabs(
-    ["Signals & Decision", "Historical Chart", "Trade Log", "Scheduled Buys"]
+tab_signals, tab_chart, tab_trades, tab_schedule, tab_strategy = st.tabs(
+    ["Signals & Decision", "Historical Chart", "Trade Log", "Scheduled Buys", "Strategy"]
 )
 
 # ===================================================================
@@ -659,3 +659,72 @@ with tab_schedule:
             _s5, _s6 = st.columns(2)
             _s5.metric("Total DCA Spent", f"${_total_dca_spent:,.2f}")
             _s6.metric("Total BTC via DCA", f"{_total_dca_btc:.8f}")
+
+# ===================================================================
+# TAB 5: Strategy
+# ===================================================================
+
+with tab_strategy:
+    st.subheader("Strategy Overview")
+
+    st.markdown(
+        "Four independent agents each analyze a different dimension of the Bitcoin market "
+        "and produce a **score** (-1 to +1) with a **confidence** (0 to 1). The orchestrator "
+        "blends these into a single composite score using confidence-weighted averaging, then "
+        "maps the result to a DCA multiplier that scales the base order size."
+    )
+
+    # Visual diagram using Streamlit's built-in graphviz support
+    st.graphviz_chart("""
+    digraph {
+        rankdir=LR
+        bgcolor="transparent"
+        node [shape=box style="rounded,filled" fontname="Helvetica" fontsize=12 color="#2a2d35"]
+        edge [color="#555" fontname="Helvetica" fontsize=10]
+
+        reddit   [label="Reddit Posts"        fillcolor="#1a1a2e" fontcolor="#c9d1d9"]
+        news     [label="Google News RSS"     fillcolor="#1a1a2e" fontcolor="#c9d1d9"]
+        kraken   [label="Kraken OHLCV"        fillcolor="#1a1a2e" fontcolor="#c9d1d9"]
+        onchain  [label="Halving + MVRV"      fillcolor="#1a1a2e" fontcolor="#c9d1d9"]
+
+        sent     [label="Sentiment\\n25%" fillcolor="#16213e" fontcolor="#66bb6a"]
+        geo      [label="Geopolitical\\n15%"   fillcolor="#16213e" fontcolor="#66bb6a"]
+        tech     [label="Technical\\n30%"      fillcolor="#16213e" fontcolor="#66bb6a"]
+        cycle    [label="Cycle\\n30%"          fillcolor="#16213e" fontcolor="#66bb6a"]
+
+        orch     [label="Orchestrator"   fillcolor="#0f3460" fontcolor="#f7931a" penwidth=2]
+        exec     [label="Hyperliquid\\n3x Leveraged Perps" fillcolor="#1a1a2e" fontcolor="#f7931a"]
+
+        reddit  -> sent
+        news    -> geo
+        kraken  -> tech
+        onchain -> cycle
+
+        sent  -> orch
+        geo   -> orch
+        tech  -> orch
+        cycle -> orch
+
+        orch -> exec [label=" DCA multiplier"]
+    }
+    """)
+
+    st.markdown("---")
+
+    st.markdown(
+        "**Sentiment** inverts Reddit mood as a contrarian signal -- fear is a buy signal, "
+        "greed is a sell signal. **Technical** combines RSI, SMA crossover, and MACD across "
+        "daily and weekly timeframes. **Cycle** blends halving-cycle position with the MVRV "
+        "Z-Score to gauge market valuation. **Geopolitical** scores macro headlines for events "
+        "that historically drive BTC capital flows."
+    )
+
+    st.markdown(
+        "| Composite Score | Action | Multiplier |\n"
+        "|---|---|---|\n"
+        "| >= +0.5 | Strong Buy | 3.0x |\n"
+        "| >= +0.2 | Buy | 1.5x |\n"
+        "| -0.2 to +0.2 | Normal | 1.0x |\n"
+        "| <= -0.2 | Reduce | 0.5x |\n"
+        "| <= -0.5 | Minimal | 0.2x |"
+    )
