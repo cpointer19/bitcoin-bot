@@ -237,6 +237,21 @@ st.sidebar.markdown("---")
 # Main content
 # ---------------------------------------------------------------------------
 
+st.markdown(
+    """
+    <style>
+    /* Gold-bordered Run Analysis button */
+    button[kind="primary"] {
+        border: 2px solid #FFD700 !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        padding: 0.6rem 1.2rem !important;
+        min-height: 3rem !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 _title_col, _eye_col, _btn_col = st.columns([3, 0.4, 1])
 _title_col.title("BTC Bot")
 if "hide_values" not in st.session_state:
@@ -247,7 +262,7 @@ if _eye_col.button(_eye_label, key="eye_toggle", use_container_width=True):
     st.rerun()
 _hidden = st.session_state["hide_values"]
 _mask = "••••"
-run_now = _btn_col.button("Run Analysis Now", use_container_width=True)
+run_now = _btn_col.button("Run Analysis Now", type="primary", use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Account overview (top of page)
