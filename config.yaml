@@ -18,7 +18,7 @@ anthropic:
 
 trading:
   symbol: "BTC/USDC:USDC"
-  leverage: 2
+  leverage: 3
   dry_run: true
   kill_switch: false
   max_order_usd: 100
@@ -63,6 +63,6 @@ agents:
     mvrv_live: true
 
 orchestrator:
-  base_dca_usd: 100
+  base_dca_usd: 30
   min_confidence: 0.0
   poll_interval_seconds: 300
