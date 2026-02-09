@@ -223,13 +223,14 @@ else:
     st.sidebar.info("Set HYPERLIQUID_WALLET_ADDRESS to see account stats")
 
 st.sidebar.markdown("---")
-run_now = st.sidebar.button("Run Analysis Now")
 
 # ---------------------------------------------------------------------------
 # Main content
 # ---------------------------------------------------------------------------
 
-st.title("BTC Bot")
+_title_col, _btn_col = st.columns([3, 1])
+_title_col.title("BTC Bot")
+run_now = _btn_col.button("Run Analysis Now", use_container_width=True)
 
 # ---- Tab layout ----
 tab_signals, tab_chart, tab_trades = st.tabs(["Signals & Decision", "Historical Chart", "Trade Log"])
@@ -255,7 +256,7 @@ with tab_signals:
     decision: Decision | None = st.session_state.get("decision")
 
     if decision is None:
-        st.info("Press **Run Analysis Now** in the sidebar to fetch live signals.")
+        st.info("Press **Run Analysis Now** above to fetch live signals.")
     else:
         # -- Composite signal --
         col_action, col_score, col_dca = st.columns(3)
