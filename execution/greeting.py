@@ -11,6 +11,9 @@ from zoneinfo import ZoneInfo
 
 import anthropic
 
+from agents.sentiment import RedditFetcher
+from agents.geopolitical import GoogleNewsFetcher
+
 logger = logging.getLogger(__name__)
 
 _TZ_PT = ZoneInfo("America/Los_Angeles")
@@ -83,27 +86,82 @@ def _assess_leverage(stats: dict | None) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# News context for briefing
+# ---------------------------------------------------------------------------
+
+def _fetch_news_context() -> dict:
+    """Fetch headlines and Reddit posts for the daily briefing.
+
+    Returns a dict with compact summaries suitable for the LLM prompt.
+    """
+    context: dict = {}
+
+    # Geopolitical headlines
+    try:
+        geo_fetcher = GoogleNewsFetcher(max_headlines=10)
+        headlines = geo_fetcher.fetch([
+            "bitcoin regulation", "sanctions", "banking crisis",
+            "currency devaluation", "CBDC", "capital controls",
+        ])
+        if headlines:
+            context["geopolitical_headlines"] = [
+                f"[{h.source}] {h.title}" for h in headlines[:8]
+            ]
+    except Exception as exc:
+        logger.debug("Failed to fetch geo headlines for greeting: %s", exc)
+
+    # Reddit sentiment
+    try:
+        reddit_fetcher = RedditFetcher(
+            subreddits=["Bitcoin", "CryptoCurrency"],
+            max_posts=15,
+            sort="hot",
+        )
+        posts = reddit_fetcher.fetch()
+        if posts:
+            # Top posts by score
+            top = sorted(posts, key=lambda p: p.score, reverse=True)[:8]
+            context["reddit_top_posts"] = [
+                f"r/{p.subreddit} (score:{p.score}) {p.title}" for p in top
+            ]
+    except Exception as exc:
+        logger.debug("Failed to fetch Reddit posts for greeting: %s", exc)
+
+    return context
+
+
+# ---------------------------------------------------------------------------
 # LLM greeting
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """\
 You are the BTC Bot daily briefing assistant. You speak directly to Curtis, \
-the bot's operator. Your tone is calm, direct, and professional — like a \
-trusted trading desk analyst giving a morning brief.
+the bot's operator. You are enthusiastic, energetic, and hype — like a \
+trusted trading desk analyst who genuinely loves this job and is fired up \
+about the market every single day. Be encouraging and positive while still \
+being honest about risks.
 
-You will receive the current account state and market context. Produce a \
-short daily briefing (3-6 sentences). Include:
+You will receive the current account state, market context, and today's news \
+headlines / Reddit sentiment. Produce a daily briefing. Structure it as:
 
-1. A time-appropriate greeting using Curtis's name.
-2. A quick account status summary (position, PnL, leverage).
-3. If effective leverage is high (>2x), explicitly flag the risk and suggest \
-caution with new buys. If leverage is extreme (>3x), strongly recommend \
-reducing exposure or skipping today's buy entirely.
-4. Any relevant observation about the next scheduled buy.
-5. A closing thought or encouragement.
+1. An enthusiastic time-appropriate greeting using Curtis's name.
+2. A quick account status summary (position, PnL, leverage). Hype up any \
+gains, be supportive about losses.
+3. If effective leverage is high (>2x), flag the risk but stay encouraging. \
+If extreme (>3x), strongly recommend reducing exposure.
+4. NEWS DIGEST — Include 1-2 line summaries for each agent's data:
+   - SENTIMENT: What is the Reddit mood? Fearful, greedy, mixed? \
+Mention 1-2 notable post themes.
+   - GEOPOLITICAL: What are the top macro headlines affecting BTC? \
+Summarize 1-2 key stories.
+   - TECHNICAL: Comment on recent price action (you have BTC price data).
+   - CYCLE: Where are we in the halving cycle (context: last halving \
+was April 2024, next is ~2028).
+5. Any relevant observation about the next scheduled buy.
+6. A closing thought — keep it hype and motivating.
 
 Do NOT use emojis. Do NOT use markdown formatting. Write plain text only. \
-Keep it concise — this appears in a text box on a dashboard."""
+This appears in a text box on a dashboard."""
 
 
 def _generate_greeting_llm(
@@ -124,6 +182,9 @@ def _generate_greeting_llm(
         if usd_val is None:
             return None
         return f"{ccy_sym}{usd_val * ccy_rate:,.2f}"
+
+    # Fetch live news context
+    news_context = _fetch_news_context()
 
     context = {
         "greeting": greeting,
@@ -147,6 +208,9 @@ def _generate_greeting_llm(
             "available": _convert(stats.get("available")),
         }
 
+    if news_context:
+        context["todays_news"] = news_context
+
     user_prompt = (
         f"Generate today's briefing for Curtis. All monetary values are shown in "
         f"{currency}. Use the {currency} symbol ({ccy_sym}) for all dollar amounts. "
@@ -158,7 +222,7 @@ def _generate_greeting_llm(
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
             model=model,
-            max_tokens=300,
+            max_tokens=600,
             system=_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
