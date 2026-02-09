@@ -22,6 +22,10 @@ from agents.data_fetcher import OHLCVFetcher
 from orchestrator.orchestrator import Orchestrator, Decision
 from execution.executor import Executor, OrderResult
 from execution.trade_log import TradeRecord, append_trade, load_trade_log
+from execution.schedule import (
+    load_schedule, ensure_todays_entry, mark_missed_entries,
+    confirm_scheduled_buy, get_today_pt,
+)
 from models.signal import Signal
 
 # ---------------------------------------------------------------------------
@@ -308,8 +312,14 @@ if _wallet:
         _r2[3].metric("Margin Used", _v(f"${_stats['margin_used']:,.2f}"))
         st.markdown("---")
 
+# ---- Schedule ledger: auto-generate today's entry & mark stale as missed ----
+mark_missed_entries()
+ensure_todays_entry(base_dca_usd=base_dca)
+
 # ---- Tab layout ----
-tab_signals, tab_chart, tab_trades = st.tabs(["Signals & Decision", "Historical Chart", "Trade Log"])
+tab_signals, tab_chart, tab_trades, tab_schedule = st.tabs(
+    ["Signals & Decision", "Historical Chart", "Trade Log", "Scheduled Buys"]
+)
 
 # ===================================================================
 # TAB 1: Current Signals & Decision
@@ -421,6 +431,11 @@ with tab_signals:
                     dry_run=result.dry_run,
                     reason=result.reason,
                 ))
+                confirm_scheduled_buy(
+                    trade_date=get_today_pt(),
+                    result=result,
+                    decision=decision,
+                )
             if result.dry_run and result.amount_btc is not None:
                 st.success(
                     f"[DRY RUN] Would BUY {result.amount_btc:.8f} BTC "
@@ -554,3 +569,67 @@ with tab_trades:
         c1.metric("Total Trades", len(df))
         c2.metric("Total Spent (USD)", f"${total_spent:,.2f}")
         c3.metric("Total BTC Accumulated", f"{total_btc:.8f}")
+
+# ===================================================================
+# TAB 4: Scheduled Buys
+# ===================================================================
+
+with tab_schedule:
+    st.subheader("Daily Buy Schedule")
+    st.caption("A new entry appears each day after 9:00 AM PT.")
+
+    _schedule = load_schedule()
+
+    if not _schedule:
+        st.info("No scheduled buys yet. The first entry will appear after 9:00 AM PT.")
+    else:
+        _schedule_sorted = sorted(_schedule, key=lambda e: e["date"], reverse=True)
+        _schedule_display = _schedule_sorted[:30]
+
+        for _entry in _schedule_display:
+            _is_today = _entry["date"] == get_today_pt()
+            _date_label = f"**{_entry['date']}**" + (" (Today)" if _is_today else "")
+
+            _col_date, _col_status, _col_amount = st.columns([2, 1.5, 2])
+            _col_date.markdown(_date_label)
+
+            if _entry["status"] == "pending":
+                _col_status.warning("Pending")
+            elif _entry["status"] == "missed":
+                _col_status.error("Missed")
+            else:
+                _col_status.success("Confirmed")
+
+            _col_amount.markdown(f"Planned: **${_entry['planned_amount_usd']:.0f}**")
+
+            if _entry["status"] == "confirmed":
+                _d1, _d2, _d3, _d4 = st.columns(4)
+                _d1.metric("Actual USD", f"${_entry.get('actual_amount_usd', 0):.2f}")
+                _d2.metric("BTC", f"{_entry.get('actual_amount_btc', 0):.8f}")
+                _d3.metric("Price", f"${_entry.get('price', 0):,.2f}")
+                _action_lbl = _ACTION_EMOJI.get(
+                    _entry.get("action", ""), _entry.get("action", "—")
+                )
+                _d4.metric("Action", _action_lbl)
+                if _entry.get("dry_run"):
+                    st.caption("(Dry run)")
+
+            st.markdown("---")
+
+        # Summary
+        _confirmed = [e for e in _schedule if e["status"] == "confirmed"]
+        _pending = [e for e in _schedule if e["status"] == "pending"]
+        _missed = [e for e in _schedule if e["status"] == "missed"]
+
+        _s1, _s2, _s3, _s4 = st.columns(4)
+        _s1.metric("Total Days", len(_schedule))
+        _s2.metric("Confirmed", len(_confirmed))
+        _s3.metric("Pending", len(_pending))
+        _s4.metric("Missed", len(_missed))
+
+        if _confirmed:
+            _total_dca_spent = sum(e.get("actual_amount_usd", 0) or 0 for e in _confirmed)
+            _total_dca_btc = sum(e.get("actual_amount_btc", 0) or 0 for e in _confirmed)
+            _s5, _s6 = st.columns(2)
+            _s5.metric("Total DCA Spent", f"${_total_dca_spent:,.2f}")
+            _s6.metric("Total BTC via DCA", f"{_total_dca_btc:.8f}")
