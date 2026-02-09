@@ -1,6 +1,6 @@
 # BTC Bot
 
-A multi-agent Bitcoin DCA bot that opens 2x leveraged long positions on [Hyperliquid](https://app.hyperliquid.xyz) perpetual futures, dynamically sizing orders based on market signals. Includes a Streamlit dashboard for visualization and one-click trade execution.
+A multi-agent Bitcoin DCA bot that opens leveraged long positions on [Hyperliquid](https://app.hyperliquid.xyz) perpetual futures, dynamically sizing orders based on market signals. Includes a Streamlit dashboard for visualization and one-click trade execution.
 
 ## Strategy
 
@@ -12,8 +12,8 @@ Four agents each produce a **score** ([-1, +1]) and **confidence** ([0, 1]). The
 Reddit posts ────► Sentiment Agent  ──┐
 Google News RSS ─► Geopolitical Agent ┤
 Kraken OHLCV ────► Technical Agent  ──┼──► Orchestrator ──► DCA Multiplier ──► Hyperliquid
-Halving + MVRV ──► Cycle Agent     ──┘        │                  │            (2x leveraged
-                                         composite score    base $100 * Nx     perp longs)
+Halving + MVRV ──► Cycle Agent     ──┘        │                  │            (leveraged
+                                         composite score    base * Nx         perp longs)
 ```
 
 ### Agents
@@ -74,22 +74,22 @@ composite = SUM(weight_i * score_i * confidence_i) / SUM(weight_i * confidence_i
 
 Low-confidence signals are naturally down-weighted. The composite maps to an action tier:
 
-| Action | Multiplier | Condition | Order size ($100 base) |
-|---|---|---|---|
-| Strong Buy | 3.0x | Score >= 0.5 | $300 |
-| Buy | 1.5x | Score >= 0.2 | $150 |
-| Normal | 1.0x | -0.2 < Score < 0.2 | $100 |
-| Reduce | 0.5x | Score <= -0.2 | $50 |
-| Minimal | 0.2x | Score <= -0.5 | $20 |
+| Action | Multiplier | Condition |
+|---|---|---|
+| Strong Buy | 3.0x | Score >= 0.5 |
+| Buy | 1.5x | Score >= 0.2 |
+| Normal | 1.0x | -0.2 < Score < 0.2 |
+| Reduce | 0.5x | Score <= -0.2 |
+| Minimal | 0.2x | Score <= -0.5 |
 
 ### Execution
 
-All orders are **market buy** on BTC/USDC perpetual futures via Hyperliquid with **2x leverage**. The $100/day cap applies to margin deployed &mdash; total notional and position value accumulate over time.
+All orders are **market buy** on BTC/USDC perpetual futures via Hyperliquid with configurable leverage. A daily margin cap limits total deployment per day &mdash; total notional and position value accumulate over time.
 
 Safety layers:
 - **Kill switch** &mdash; halts all trading instantly
-- **Max order cap** &mdash; single order clamped to $100
-- **Daily spend limit** &mdash; $100 margin/day, tracked in a persistent ledger
+- **Max order cap** &mdash; single order clamped to configurable limit
+- **Daily spend limit** &mdash; configurable margin/day, tracked in a persistent ledger
 - **Dry run mode** &mdash; simulates everything without placing real orders (default)
 - **Testnet mode** &mdash; uses Hyperliquid testnet (default)
 
