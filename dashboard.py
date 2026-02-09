@@ -489,8 +489,9 @@ run_now = _btn_col.button("Run Analysis Now", type="primary", use_container_widt
 _wallet = _get_wallet_address()
 if _wallet:
     _short_addr = f"{_wallet[:6]}...{_wallet[-4:]}"
-    st.html(
+    st.markdown(
         f"<div style='margin: -0.8rem 0 1rem 0; display: flex; align-items: center; gap: 0.5rem;'>"
+        f"<span id='wallet-full' style='display:none;'>{_wallet}</span>"
         f"<span style='"
         f"font-family: \"JetBrains Mono\", monospace; "
         f"font-size: 0.82rem; "
@@ -498,10 +499,15 @@ if _wallet:
         f"letter-spacing: 0.03em; "
         f"opacity: 0.85;"
         f"'>{_short_addr}</span>"
-        f"<button onclick=\"navigator.clipboard.writeText('{_wallet}').then(() => {{"
-        f"this.textContent = 'Copied!';"
-        f"setTimeout(() => this.textContent = 'Copy', 1500);"
-        f"}})\" style='"
+        f"<button onclick=\""
+        f"var t=document.getElementById('wallet-full').textContent;"
+        f"var i=document.createElement('textarea');"
+        f"i.value=t;i.style.position='fixed';i.style.left='-9999px';"
+        f"document.body.appendChild(i);i.select();document.execCommand('copy');"
+        f"document.body.removeChild(i);"
+        f"this.textContent='Copied!';"
+        f"setTimeout(function(){{this.textContent='Copy';}}.bind(this),1500);"
+        f"\" style='"
         f"background: transparent; "
         f"border: 1px solid #f7931a44; "
         f"color: #f7931a; "
@@ -515,7 +521,8 @@ if _wallet:
         f"' onmouseover=\"this.style.borderColor='#f7931a'; this.style.boxShadow='0 0 8px #f7931a33'\""
         f" onmouseout=\"this.style.borderColor='#f7931a44'; this.style.boxShadow='none'\""
         f">Copy</button>"
-        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True,
     )
 
 # ---------------------------------------------------------------------------
