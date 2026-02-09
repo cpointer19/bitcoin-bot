@@ -346,25 +346,30 @@ with tab_signals:
             unsafe_allow_html=True,
         )
         col_score.metric(
-            "Composite Score",
+            "Composite Score*",
             f"{decision.composite_score:+.4f}",
-            help=(
-                "Each agent produces a score from -1.0 to +1.0:\n\n"
-                "+1.0 = strongest bullish signal (buy more BTC)\n"
-                "0.0 = neutral\n"
-                "-1.0 = strongest bearish signal (buy less BTC)\n\n"
-                "**Technical:** +1 = oversold / bullish crossovers, "
-                "-1 = overbought / bearish crossovers\n\n"
-                "**Cycle:** +1 = early in halving cycle / undervalued MVRV, "
-                "-1 = late cycle / overheated\n\n"
-                "**Sentiment:** +1 = extreme fear on Reddit (contrarian buy), "
-                "-1 = extreme greed (contrarian sell)\n\n"
-                "**Geopolitical:** +1 = macro favors BTC (banking crisis, capital controls), "
-                "-1 = hostile (crackdowns, hawkish central banks)"
-            ),
         )
         order_usd = base_dca * decision.dca_multiplier
         col_dca.metric("Order Size", f"${order_usd:.0f}", f"{decision.dca_multiplier:.1f}x base")
+
+        st.markdown(
+            "<div style='font-size:0.9rem; line-height:1.6; color:#aaa; margin-top:0.8rem;'>"
+            "<b>*Composite Score</b> — Each agent produces a score from "
+            "<b>-1.0</b> to <b>+1.0</b>:<br>"
+            "+1.0 = strongest bullish signal (buy more BTC) · "
+            "0.0 = neutral · "
+            "-1.0 = strongest bearish signal (buy less BTC)<br><br>"
+            "<b>Technical:</b> +1 = oversold / bullish crossovers, "
+            "-1 = overbought / bearish crossovers<br>"
+            "<b>Cycle:</b> +1 = early in halving cycle / undervalued MVRV, "
+            "-1 = late cycle / overheated<br>"
+            "<b>Sentiment:</b> +1 = extreme fear on Reddit (contrarian buy), "
+            "-1 = extreme greed (contrarian sell)<br>"
+            "<b>Geopolitical:</b> +1 = macro favors BTC (banking crisis, capital controls), "
+            "-1 = hostile (crackdowns, hawkish central banks)"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
         st.markdown("---")
 
