@@ -43,9 +43,15 @@ def load_schedule(path: Path = _SCHEDULE_PATH) -> list[dict]:
     if not path.exists():
         return []
     try:
-        return json.loads(path.read_text())
+        raw = json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return []
+    # Drop any entries before the configured first date (cleans up stale data)
+    first = _FIRST_DATE.isoformat()
+    cleaned = [e for e in raw if e.get("date", "") >= first]
+    if len(cleaned) != len(raw):
+        save_schedule(cleaned, path)
+    return cleaned
 
 
 def save_schedule(entries: list[dict], path: Path = _SCHEDULE_PATH) -> None:
