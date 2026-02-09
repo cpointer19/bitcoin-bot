@@ -387,8 +387,15 @@ with tab_signals:
 
         st.markdown("---")
 
-        # -- Execute button --
-        if st.button("Execute Trade (Dry Run)"):
+        # -- Execute button (password-protected) --
+        _TRADE_PW_HASH = "ef4849eb661ec448f9d3aeb3a7f013d04aa3f31a7717a31c74426790c93c2a3e"
+        _trade_pw = st.text_input("Trade password", type="password", key="trade_pw")
+        _exec_clicked = st.button("Execute Trade")
+        if _exec_clicked:
+            import hashlib
+            if hashlib.sha256(_trade_pw.encode()).hexdigest() != _TRADE_PW_HASH:
+                st.error("Incorrect password.")
+                st.stop()
             with st.spinner("Executing..."):
                 executor = Executor(config)
                 executor.connect()
