@@ -1,6 +1,6 @@
 # BTC Bot
 
-A multi-agent Bitcoin DCA bot that opens leveraged long positions on [Hyperliquid](https://app.hyperliquid.xyz) perpetual futures, dynamically sizing orders based on market signals. Includes a Streamlit dashboard for visualization and one-click trade execution.
+A multi-agent Bitcoin DCA bot that opens 3x leveraged long positions on [Hyperliquid](https://app.hyperliquid.xyz) perpetual futures, dynamically sizing orders based on market signals. Includes a Streamlit dashboard for visualization and one-click trade execution.
 
 ## Strategy
 
@@ -12,7 +12,7 @@ Four agents each produce a **score** ([-1, +1]) and **confidence** ([0, 1]). The
 Reddit posts ────► Sentiment Agent  ──┐
 Google News RSS ─► Geopolitical Agent ┤
 Kraken OHLCV ────► Technical Agent  ──┼──► Orchestrator ──► DCA Multiplier ──► Hyperliquid
-Halving + MVRV ──► Cycle Agent     ──┘        │                  │            (leveraged
+Halving + MVRV ──► Cycle Agent     ──┘        │                  │            (3x leveraged
                                          composite score    base * Nx         perp longs)
 ```
 
@@ -84,7 +84,7 @@ Low-confidence signals are naturally down-weighted. The composite maps to an act
 
 ### Execution
 
-All orders are **market buy** on BTC/USDC perpetual futures via Hyperliquid with configurable leverage. A daily margin cap limits total deployment per day &mdash; total notional and position value accumulate over time.
+All orders are **market buy** on BTC/USDC perpetual futures via Hyperliquid with **3x leverage**. A daily margin cap limits total deployment per day &mdash; total notional and position value accumulate over time.
 
 Safety layers:
 - **Kill switch** &mdash; halts all trading instantly
