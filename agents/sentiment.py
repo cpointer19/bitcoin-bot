@@ -69,14 +69,18 @@ class RedditPost:
 class RedditFetcher:
     """Fetch recent posts from Bitcoin subreddits via Reddit's public JSON API."""
 
-    _USER_AGENT = "bitcoin-bot/1.0 (sentiment analysis)"
+    _USER_AGENT = "linux:bitcoin-bot:v1.0 (by /u/bitcoin-bot-agent)"
+    _DOMAINS = ["old.reddit.com", "www.reddit.com"]
 
     def __init__(self, subreddits: list[str], max_posts: int = 50, sort: str = "hot") -> None:
         self._subreddits = subreddits
         self._max_posts = max_posts
         self._sort = sort
         self._session = requests.Session()
-        self._session.headers.update({"User-Agent": self._USER_AGENT})
+        self._session.headers.update({
+            "User-Agent": self._USER_AGENT,
+            "Accept": "application/json",
+        })
 
     def fetch(self) -> list[RedditPost]:
         """Fetch posts from all configured subreddits."""
@@ -85,12 +89,17 @@ class RedditFetcher:
 
         for sub in self._subreddits:
             try:
-                url = f"https://www.reddit.com/r/{sub}/{self._sort}.json"
-                resp = self._session.get(
-                    url,
-                    params={"limit": per_sub, "raw_json": 1},
-                    timeout=10,
-                )
+                resp = None
+                for domain in self._DOMAINS:
+                    url = f"https://{domain}/r/{sub}/{self._sort}.json"
+                    resp = self._session.get(
+                        url,
+                        params={"limit": per_sub, "raw_json": 1},
+                        timeout=15,
+                    )
+                    if resp.status_code == 200:
+                        break
+                    logger.warning("Reddit %s returned %s, trying next domain", domain, resp.status_code)
                 resp.raise_for_status()
                 data = resp.json()
 
