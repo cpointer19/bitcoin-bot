@@ -60,10 +60,9 @@ export default function App() {
             paddingBottom: 4,
             height: 56,
           },
+          headerShadowVisible: false,
           headerStyle: {
             backgroundColor: colors.surface,
-            shadowColor: "transparent",
-            elevation: 0,
           },
           headerTintColor: colors.text,
           headerTitleStyle: {
