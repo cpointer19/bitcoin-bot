@@ -65,9 +65,6 @@ export default function App() {
             backgroundColor: colors.surface,
           },
           headerTintColor: colors.text,
-          headerTitleStyle: {
-            fontWeight: "600",
-          },
         })}
       >
         <Tab.Screen name="Dashboard" component={DashboardScreen} />
