@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTradesStore } from "../stores/trades";
@@ -14,6 +16,7 @@ import { useManualEntriesStore } from "../stores/manual-entries";
 import TradeRow from "../components/TradeRow";
 import { TradeRecord, Platform, TradeType } from "../types";
 import { colors, fontSize, spacing, borderRadius } from "../utils/theme";
+import { exportTrades2025 } from "../utils/excel-export";
 
 type PlatformFilter = "all" | Platform;
 type TypeFilter = "all" | TradeType | "custom";
@@ -83,6 +86,18 @@ export default function TradesScreen() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportTrades2025(allTrades);
+    } catch (err: any) {
+      Alert.alert("Export Error", err.message ?? "Failed to export trades.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Merge API trades with manual entries
   const allTrades: TradeRecord[] = useMemo(() => {
@@ -166,6 +181,22 @@ export default function TradesScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Export Button */}
+      <TouchableOpacity
+        style={styles.exportBtn}
+        onPress={handleExport}
+        disabled={exporting}
+      >
+        {exporting ? (
+          <ActivityIndicator size="small" color={colors.text} />
+        ) : (
+          <>
+            <Ionicons name="download-outline" size={18} color={colors.text} />
+            <Text style={styles.exportBtnText}>Export 2025 Trades</Text>
+          </>
+        )}
+      </TouchableOpacity>
 
       {/* Filter Rows */}
       <ScrollView
@@ -286,6 +317,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     textAlign: "center",
     lineHeight: 22,
+  },
+  exportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.success,
+    borderRadius: borderRadius.sm,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  exportBtnText: {
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: "600",
   },
   searchContainer: {
     flexDirection: "row",
