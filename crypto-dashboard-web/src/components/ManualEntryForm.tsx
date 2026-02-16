@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { ManualEntry, Platform, TradeType } from "../types";
 
 const PLATFORMS: { value: Platform; label: string }[] = [
-  { value: "crypto.com", label: "Crypto.com" },
+  { value: "ethereum", label: "Ethereum" },
+  { value: "bitcoin", label: "Bitcoin" },
+  { value: "solana", label: "Solana" },
   { value: "hyperliquid", label: "Hyperliquid" },
   { value: "blur", label: "Blur" },
-  { value: "ethereum", label: "Ethereum" },
-  { value: "solana", label: "Solana" },
+  { value: "crypto.com", label: "Crypto.com" },
   { value: "other", label: "Other" },
 ];
 

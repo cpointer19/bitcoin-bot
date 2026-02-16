@@ -5,6 +5,24 @@ interface PlatformCredentials {
   [key: string]: string;
 }
 
+/** Pre-populated wallet addresses for first-time setup */
+const DEFAULT_WALLETS: Record<string, string> = {
+  "cred_ethereum_walletAddress": [
+    "0x4D55b832B28a4EaF88Aa62A4212689A424DdaB73",
+    "0xC4343E407821ce67d99e854820e285Df970CfDaf",
+    "0x969231B91676CdC4a59Fc7009e582DdF6d1515Ce",
+  ].join("\n"),
+  "cred_bitcoin_walletAddress": "3PEnMX5JXq6k7YBoFgpKhq4HAzttWdsuY3",
+  "cred_solana_walletAddress": [
+    "12pmC723G4VJfuMTDq2TwshBv7dhFUTbwUG5LEGjqauY",
+    "3x6LFNK5j2pfRn1Ma1eWugiVqoPajZHotrq3tY375HvN",
+    "C6kHPAWtiRigWZ4UzpyePhyn9KAF5zf821BNipU1XGPv",
+    "736HfXRewbNn73KB8tQ9wAdgRNNs5Kt77ZFfHeaAm9fy",
+    "HBi7S33Cs1UJhAH7k3ReBvLERzxpMnsHvcgZnYjNH9UP",
+  ].join("\n"),
+  "cred_hyperliquid_walletAddress": "0x5a3ec5Da18e8B1c9B6F1F760e96800d93DC71757",
+};
+
 interface SettingsState {
   credentials: Record<Platform, PlatformCredentials>;
   connectionStatus: Record<Platform, ConnectionStatus>;
@@ -23,7 +41,7 @@ interface SettingsState {
 
 const storageKey = (platform: Platform, key: string) => `cred_${platform}_${key}`;
 
-const PLATFORMS: Platform[] = ["crypto.com", "hyperliquid", "blur", "ethereum", "solana"];
+const ALL_PLATFORMS: Platform[] = ["crypto.com", "hyperliquid", "blur", "ethereum", "solana", "bitcoin"];
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   credentials: {
@@ -32,6 +50,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     blur: {},
     ethereum: {},
     solana: {},
+    bitcoin: {},
     other: {},
   },
   connectionStatus: {
@@ -40,6 +59,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     blur: "unconfigured",
     ethereum: "unconfigured",
     solana: "unconfigured",
+    bitcoin: "unconfigured",
     other: "unconfigured",
   },
   currency: "CAD",
@@ -84,6 +104,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   hydrate: async () => {
+    // Seed default wallets on first run
+    const seeded = localStorage.getItem("_wallets_seeded");
+    if (!seeded) {
+      for (const [key, value] of Object.entries(DEFAULT_WALLETS)) {
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, value);
+        }
+      }
+      localStorage.setItem("_wallets_seeded", "1");
+    }
+
     const currency = (localStorage.getItem("settings_currency") as "USD" | "CAD") ?? "CAD";
     const autoRefreshRaw = localStorage.getItem("settings_autoRefresh");
     const autoRefreshInterval = autoRefreshRaw ? (Number(autoRefreshRaw) as 5 | 15 | 30 | 0) : 15;
@@ -94,10 +125,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       blur: "unconfigured",
       ethereum: "unconfigured",
       solana: "unconfigured",
+      bitcoin: "unconfigured",
       other: "unconfigured",
     };
 
-    for (const p of PLATFORMS) {
+    for (const p of ALL_PLATFORMS) {
       const hasWallet = localStorage.getItem(storageKey(p, "walletAddress"));
       const hasApiKey = localStorage.getItem(storageKey(p, "apiKey"));
       if (hasWallet || hasApiKey) {
@@ -109,13 +141,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   clearAll: async () => {
-    for (const p of PLATFORMS) {
+    for (const p of ALL_PLATFORMS) {
       for (const key of ["apiKey", "apiSecret", "walletAddress", "heliusApiKey", "etherscanApiKey"]) {
         localStorage.removeItem(storageKey(p, key));
       }
     }
     localStorage.removeItem("settings_currency");
     localStorage.removeItem("settings_autoRefresh");
+    localStorage.removeItem("_wallets_seeded");
     set({
       credentials: {
         "crypto.com": {},
@@ -123,6 +156,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         blur: {},
         ethereum: {},
         solana: {},
+        bitcoin: {},
         other: {},
       },
       connectionStatus: {
@@ -131,6 +165,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         blur: "unconfigured",
         ethereum: "unconfigured",
         solana: "unconfigured",
+        bitcoin: "unconfigured",
         other: "unconfigured",
       },
       currency: "CAD",

@@ -62,29 +62,43 @@ function PlatformCard({ config }: { config: PlatformConfig }) {
         <span className="status-text">{status === "testing" ? "Testing..." : status}</span>
       </div>
 
-      {config.fields.map((field) => (
-        <div key={field.key} style={{ marginBottom: 8 }}>
-          <label className="form-label" style={{ marginTop: 8 }}>{field.label}</label>
-          <div className="input-row">
-            <input
-              className="form-input"
-              placeholder={field.placeholder}
-              value={fieldValues[field.key] ?? ""}
-              onChange={(e) => setFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-              type={field.secure && !revealed[field.key] ? "password" : "text"}
-              autoComplete="off"
-            />
-            {field.secure && (
-              <button
-                className="reveal-btn"
-                onClick={() => setRevealed((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
-              >
-                {revealed[field.key] ? "\u{1F648}" : "\u{1F441}"}
-              </button>
-            )}
+      {config.fields.map((field) => {
+        const isMultiAddress = field.key === "walletAddress" && field.label.includes("one per line");
+        return (
+          <div key={field.key} style={{ marginBottom: 8 }}>
+            <label className="form-label" style={{ marginTop: 8 }}>{field.label}</label>
+            <div className="input-row">
+              {isMultiAddress ? (
+                <textarea
+                  className="form-input form-textarea"
+                  placeholder={field.placeholder}
+                  value={fieldValues[field.key] ?? ""}
+                  onChange={(e) => setFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  rows={3}
+                  style={{ fontFamily: "monospace", fontSize: 12 }}
+                />
+              ) : (
+                <input
+                  className="form-input"
+                  placeholder={field.placeholder}
+                  value={fieldValues[field.key] ?? ""}
+                  onChange={(e) => setFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  type={field.secure && !revealed[field.key] ? "password" : "text"}
+                  autoComplete="off"
+                />
+              )}
+              {field.secure && (
+                <button
+                  className="reveal-btn"
+                  onClick={() => setRevealed((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
+                >
+                  {revealed[field.key] ? "\u{1F648}" : "\u{1F441}"}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <div className="card-actions">
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>

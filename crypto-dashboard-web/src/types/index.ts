@@ -4,6 +4,7 @@ export type Platform =
   | "blur"
   | "ethereum"
   | "solana"
+  | "bitcoin"
   | "other";
 
 export type TradeType =

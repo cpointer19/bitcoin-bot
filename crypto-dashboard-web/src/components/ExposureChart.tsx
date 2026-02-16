@@ -7,6 +7,7 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   blur: "#FF6B00",
   ethereum: "#627EEA",
   solana: "#14F195",
+  bitcoin: "#F7931A",
   other: "#A0A0B0",
 };
 
@@ -16,6 +17,7 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   blur: "Blur",
   ethereum: "Ethereum",
   solana: "Solana",
+  bitcoin: "Bitcoin",
   other: "Other",
 };
 
