@@ -13,7 +13,7 @@ function StatusDot({ status }: { status: ConnectionStatus }) {
 }
 
 function PlatformCard({ config }: { config: PlatformConfig }) {
-  const { setCredential, getCredential, setConnectionStatus, connectionStatus } = useSettingsStore();
+  const { setCredential, getCredential, setConnectionStatus, connectionStatus, hydrated } = useSettingsStore();
   const status = connectionStatus[config.platform];
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
@@ -28,7 +28,7 @@ function PlatformCard({ config }: { config: PlatformConfig }) {
       }
       setFieldValues(values);
     })();
-  }, []);
+  }, [hydrated]);
 
   const handleSave = async () => {
     setSaving(true);

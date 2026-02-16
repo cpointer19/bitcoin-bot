@@ -23,6 +23,16 @@ const DEFAULT_WALLETS: Record<string, string> = {
   "cred_hyperliquid_walletAddress": "0x5a3ec5Da18e8B1c9B6F1F760e96800d93DC71757",
 };
 
+// Seed default wallets synchronously on module load (before React mounts)
+if (!localStorage.getItem("_wallets_seeded")) {
+  for (const [key, value] of Object.entries(DEFAULT_WALLETS)) {
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, value);
+    }
+  }
+  localStorage.setItem("_wallets_seeded", "1");
+}
+
 interface SettingsState {
   credentials: Record<Platform, PlatformCredentials>;
   connectionStatus: Record<Platform, ConnectionStatus>;
@@ -43,6 +53,27 @@ const storageKey = (platform: Platform, key: string) => `cred_${platform}_${key}
 
 const ALL_PLATFORMS: Platform[] = ["crypto.com", "hyperliquid", "blur", "ethereum", "solana", "bitcoin"];
 
+// Compute initial connection status from what's already in localStorage
+function computeInitialStatus(): Record<Platform, ConnectionStatus> {
+  const status: Record<Platform, ConnectionStatus> = {
+    "crypto.com": "unconfigured",
+    hyperliquid: "unconfigured",
+    blur: "unconfigured",
+    ethereum: "unconfigured",
+    solana: "unconfigured",
+    bitcoin: "unconfigured",
+    other: "unconfigured",
+  };
+  for (const p of ALL_PLATFORMS) {
+    const hasWallet = localStorage.getItem(storageKey(p, "walletAddress"));
+    const hasApiKey = localStorage.getItem(storageKey(p, "apiKey"));
+    if (hasWallet || hasApiKey) {
+      status[p] = "connected";
+    }
+  }
+  return status;
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   credentials: {
     "crypto.com": {},
@@ -53,15 +84,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     bitcoin: {},
     other: {},
   },
-  connectionStatus: {
-    "crypto.com": "unconfigured",
-    hyperliquid: "unconfigured",
-    blur: "unconfigured",
-    ethereum: "unconfigured",
-    solana: "unconfigured",
-    bitcoin: "unconfigured",
-    other: "unconfigured",
-  },
+  connectionStatus: computeInitialStatus(),
   currency: "CAD",
   autoRefreshInterval: 15,
   hydrated: false,
@@ -104,17 +127,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   hydrate: async () => {
-    // Seed default wallets on first run
-    const seeded = localStorage.getItem("_wallets_seeded");
-    if (!seeded) {
-      for (const [key, value] of Object.entries(DEFAULT_WALLETS)) {
-        if (!localStorage.getItem(key)) {
-          localStorage.setItem(key, value);
-        }
-      }
-      localStorage.setItem("_wallets_seeded", "1");
-    }
-
     const currency = (localStorage.getItem("settings_currency") as "USD" | "CAD") ?? "CAD";
     const autoRefreshRaw = localStorage.getItem("settings_autoRefresh");
     const autoRefreshInterval = autoRefreshRaw ? (Number(autoRefreshRaw) as 5 | 15 | 30 | 0) : 15;
