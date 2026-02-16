@@ -1,6 +1,6 @@
 import { PortfolioHolding } from "../types";
 import PlatformBadge from "./PlatformBadge";
-import { formatUsd, formatPercent, formatAmount } from "../utils/formatters";
+import { useFormatCurrency, formatPercent, formatAmount } from "../utils/formatters";
 
 const ASSET_ICONS: Record<string, string> = {
   BTC: "\u20BF",
@@ -11,6 +11,7 @@ const ASSET_ICONS: Record<string, string> = {
 };
 
 export default function AssetRow({ holding }: { holding: PortfolioHolding }) {
+  const fmt = useFormatCurrency();
   const isPositive = holding.change24hPercent >= 0;
   const changeColor = isPositive ? "var(--success)" : "var(--danger)";
   const icon = ASSET_ICONS[holding.asset.toUpperCase()] ?? "\u25CB";
@@ -28,7 +29,7 @@ export default function AssetRow({ holding }: { holding: PortfolioHolding }) {
         </div>
       </div>
       <div className="asset-values">
-        <div className="asset-value">{formatUsd(holding.currentValueUsd)}</div>
+        <div className="asset-value">{fmt(holding.currentValueUsd)}</div>
         <div className="asset-change" style={{ color: changeColor }}>
           {formatPercent(holding.change24hPercent)}
         </div>

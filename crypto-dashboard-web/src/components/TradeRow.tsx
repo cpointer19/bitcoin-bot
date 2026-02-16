@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TradeRecord } from "../types";
 import PlatformBadge from "./PlatformBadge";
-import { formatUsd, formatAmount, formatDate, formatTime } from "../utils/formatters";
+import { useFormatCurrency, formatAmount, formatDate, formatTime } from "../utils/formatters";
 
 const TYPE_COLORS: Record<string, string> = {
   buy: "var(--success)", sell: "var(--danger)", swap: "var(--accent)",
@@ -15,6 +15,7 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 export default function TradeRow({ trade }: { trade: TradeRecord }) {
+  const fmt = useFormatCurrency();
   const [expanded, setExpanded] = useState(false);
   const typeColor = TYPE_COLORS[trade.type] ?? "var(--text-muted)";
   const typeIcon = TYPE_ICONS[trade.type] ?? "\u25CB";
@@ -49,10 +50,10 @@ export default function TradeRow({ trade }: { trade: TradeRecord }) {
         </div>
         <div className="trade-values">
           <div className="trade-amount">{formatAmount(trade.amount)} {trade.asset}</div>
-          <div className="trade-value">{trade.totalValueUsd > 0 ? formatUsd(trade.totalValueUsd) : "\u2014"}</div>
+          <div className="trade-value">{trade.totalValueUsd > 0 ? fmt(trade.totalValueUsd) : "\u2014"}</div>
           {trade.gainLossUsd != null && trade.gainLossUsd !== 0 && (
             <div className="trade-gain" style={{ color: trade.gainLossUsd >= 0 ? "var(--success)" : "var(--danger)" }}>
-              {trade.gainLossUsd >= 0 ? "+" : ""}{formatUsd(trade.gainLossUsd)}
+              {trade.gainLossUsd >= 0 ? "+" : ""}{fmt(trade.gainLossUsd)}
             </div>
           )}
         </div>
@@ -66,26 +67,26 @@ export default function TradeRow({ trade }: { trade: TradeRecord }) {
           </div>
           <div className="detail-line">
             <span className="detail-label">Price</span>
-            <span className="detail-value">{trade.priceUsd > 0 ? formatUsd(trade.priceUsd) : "\u2014"}</span>
+            <span className="detail-value">{trade.priceUsd > 0 ? fmt(trade.priceUsd) : "\u2014"}</span>
           </div>
           <div className="detail-line">
             <span className="detail-label">Total Value</span>
-            <span className="detail-value">{trade.totalValueUsd > 0 ? formatUsd(trade.totalValueUsd) : "\u2014"}</span>
+            <span className="detail-value">{trade.totalValueUsd > 0 ? fmt(trade.totalValueUsd) : "\u2014"}</span>
           </div>
           <div className="detail-line">
             <span className="detail-label">Fees</span>
-            <span className="detail-value">{trade.feesUsd > 0 ? formatUsd(trade.feesUsd) : "\u2014"}</span>
+            <span className="detail-value">{trade.feesUsd > 0 ? fmt(trade.feesUsd) : "\u2014"}</span>
           </div>
           {trade.costBasisUsd != null && (
             <div className="detail-line">
               <span className="detail-label">Cost Basis</span>
-              <span className="detail-value">{formatUsd(trade.costBasisUsd)}</span>
+              <span className="detail-value">{fmt(trade.costBasisUsd)}</span>
             </div>
           )}
           {trade.gainLossUsd != null && (
             <div className="detail-line">
               <span className="detail-label">Gain/Loss</span>
-              <span className="detail-value">{formatUsd(trade.gainLossUsd)}</span>
+              <span className="detail-value">{fmt(trade.gainLossUsd)}</span>
             </div>
           )}
           {trade.txHash && (

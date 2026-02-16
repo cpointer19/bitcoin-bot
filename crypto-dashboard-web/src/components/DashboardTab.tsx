@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { usePortfolioStore } from "../stores/portfolio";
 import { useTradesStore } from "../stores/trades";
+import { useSettingsStore } from "../stores/settings";
 import { fetchAllPlatformData } from "../services/aggregator";
 import PortfolioCard from "./PortfolioCard";
 import AssetRow from "./AssetRow";
@@ -15,6 +16,7 @@ export default function DashboardTab() {
     lastRefreshed, loading, error, setHoldings, setLoading, setError,
   } = usePortfolioStore();
   const { setTrades } = useTradesStore();
+  const refreshCadRate = useSettingsStore((s) => s.refreshCadRate);
 
   const [sortBy, setSortBy] = useState<SortKey>("value");
   const [chartMode, setChartMode] = useState<ChartMode>("platform");
@@ -23,7 +25,10 @@ export default function DashboardTab() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchAllPlatformData();
+      const [result] = await Promise.all([
+        fetchAllPlatformData(),
+        refreshCadRate(),
+      ]);
       setHoldings(result.holdings);
       setTrades(result.trades);
       if (result.errors.length > 0) {

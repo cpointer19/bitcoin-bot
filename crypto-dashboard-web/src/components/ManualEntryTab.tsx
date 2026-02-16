@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useManualEntriesStore } from "../stores/manual-entries";
 import ManualEntryForm from "./ManualEntryForm";
 import { ManualEntry } from "../types";
-import { formatUsd, formatDate } from "../utils/formatters";
+import { useFormatCurrency, formatDate } from "../utils/formatters";
 
 const BLUR_TEMPLATE: Partial<ManualEntry> = {
   platform: "blur",
@@ -97,6 +97,7 @@ export default function ManualEntryTab() {
 }
 
 function EntryCard({ entry, onEdit, onDelete }: { entry: ManualEntry; onEdit: () => void; onDelete: () => void }) {
+  const fmt = useFormatCurrency();
   const typeColor =
     entry.type === "liquidation" || entry.type === "sell"
       ? "var(--danger)"
@@ -124,14 +125,14 @@ function EntryCard({ entry, onEdit, onDelete }: { entry: ManualEntry; onEdit: ()
         {entry.totalValueUsd > 0 && (
           <div className="entry-row">
             <span className="entry-label">Value</span>
-            <span className="entry-value">{formatUsd(entry.totalValueUsd)}</span>
+            <span className="entry-value">{fmt(entry.totalValueUsd)}</span>
           </div>
         )}
         {entry.gainLossUsd != null && entry.gainLossUsd !== 0 && (
           <div className="entry-row">
             <span className="entry-label">Gain/Loss</span>
             <span className="entry-value" style={{ color: entry.gainLossUsd >= 0 ? "var(--success)" : "var(--danger)" }}>
-              {entry.gainLossUsd >= 0 ? "+" : ""}{formatUsd(entry.gainLossUsd)}
+              {entry.gainLossUsd >= 0 ? "+" : ""}{fmt(entry.gainLossUsd)}
             </span>
           </div>
         )}

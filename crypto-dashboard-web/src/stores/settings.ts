@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Platform, ConnectionStatus } from "../types";
+import { fetchUsdCadRate } from "../services/coingecko";
 
 interface PlatformCredentials {
   [key: string]: string;
@@ -37,6 +38,7 @@ interface SettingsState {
   credentials: Record<Platform, PlatformCredentials>;
   connectionStatus: Record<Platform, ConnectionStatus>;
   currency: "USD" | "CAD";
+  cadRate: number;
   autoRefreshInterval: 5 | 15 | 30 | 0;
   hydrated: boolean;
 
@@ -45,6 +47,7 @@ interface SettingsState {
   setConnectionStatus: (platform: Platform, status: ConnectionStatus) => void;
   setCurrency: (currency: "USD" | "CAD") => void;
   setAutoRefreshInterval: (interval: 5 | 15 | 30 | 0) => void;
+  refreshCadRate: () => Promise<void>;
   hydrate: () => Promise<void>;
   clearAll: () => Promise<void>;
 }
@@ -86,6 +89,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
   connectionStatus: computeInitialStatus(),
   currency: "CAD",
+  cadRate: 1.36,
   autoRefreshInterval: 15,
   hydrated: false,
 
@@ -126,6 +130,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     localStorage.setItem("settings_autoRefresh", String(interval));
   },
 
+  refreshCadRate: async () => {
+    const cadRate = await fetchUsdCadRate();
+    set({ cadRate });
+  },
+
   hydrate: async () => {
     const currency = (localStorage.getItem("settings_currency") as "USD" | "CAD") ?? "CAD";
     const autoRefreshRaw = localStorage.getItem("settings_autoRefresh");
@@ -149,7 +158,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
     }
 
-    set({ currency, autoRefreshInterval, connectionStatus, hydrated: true });
+    // Fetch CAD rate in background (don't block hydration)
+    const cadRate = await fetchUsdCadRate().catch(() => 1.36);
+
+    set({ currency, autoRefreshInterval, connectionStatus, cadRate, hydrated: true });
   },
 
   clearAll: async () => {

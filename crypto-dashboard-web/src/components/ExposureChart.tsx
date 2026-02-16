@@ -1,5 +1,5 @@
 import { PortfolioHolding, Platform } from "../types";
-import { formatUsd } from "../utils/formatters";
+import { useFormatCurrency } from "../utils/formatters";
 
 const PLATFORM_COLORS: Record<Platform, string> = {
   "crypto.com": "#1A6CDB",
@@ -32,6 +32,7 @@ interface Props {
 }
 
 export default function ExposureChart({ holdings, mode }: Props) {
+  const fmt = useFormatCurrency();
   if (holdings.length === 0) return null;
 
   let segments: { name: string; value: number; color: string }[];
@@ -93,7 +94,7 @@ export default function ExposureChart({ holdings, mode }: Props) {
               <div className="legend-dot" style={{ background: seg.color }} />
               <span className="legend-name">{seg.name}</span>
               <span className="legend-pct">{pct}%</span>
-              <span className="legend-value">{formatUsd(seg.value)}</span>
+              <span className="legend-value">{fmt(seg.value)}</span>
             </div>
           );
         })}

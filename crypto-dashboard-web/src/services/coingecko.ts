@@ -118,6 +118,34 @@ export async function fetchMultiplePricesBySymbol(
   return result;
 }
 
+/**
+ * Fetch the USD → CAD exchange rate via CoinGecko (BTC priced in both).
+ */
+let cadRateCache: { rate: number; timestamp: number } | null = null;
+
+export async function fetchUsdCadRate(): Promise<number> {
+  if (cadRateCache && Date.now() - cadRateCache.timestamp < CACHE_TTL_MS) {
+    return cadRateCache.rate;
+  }
+  try {
+    const url = `${BASE_URL}/simple/price?ids=bitcoin&vs_currencies=usd,cad`;
+    const response = await fetch(url);
+    if (!response.ok) return cadRateCache?.rate ?? 1.36;
+    const data = await response.json();
+    const usd = data.bitcoin?.usd;
+    const cad = data.bitcoin?.cad;
+    if (usd && cad && usd > 0) {
+      const rate = cad / usd;
+      cadRateCache = { rate, timestamp: Date.now() };
+      return rate;
+    }
+  } catch {
+    // ignore
+  }
+  return cadRateCache?.rate ?? 1.36;
+}
+
 export function clearPriceCache() {
   priceCache = null;
+  cadRateCache = null;
 }

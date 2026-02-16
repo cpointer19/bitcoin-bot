@@ -1,4 +1,4 @@
-import { formatUsd, formatPercent, timeAgo } from "../utils/formatters";
+import { useFormatCurrency, formatPercent, timeAgo } from "../utils/formatters";
 
 interface Props {
   totalValueUsd: number;
@@ -12,6 +12,7 @@ interface Props {
 export default function PortfolioCard({
   totalValueUsd, change24hUsd, change24hPercent, lastRefreshed, onRefresh, loading,
 }: Props) {
+  const fmt = useFormatCurrency();
   const isPositive = change24hPercent >= 0;
   const changeColor = isPositive ? "var(--success)" : "var(--danger)";
 
@@ -20,7 +21,7 @@ export default function PortfolioCard({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div className="label">Total Portfolio Value</div>
-          <div className="value">{formatUsd(totalValueUsd)}</div>
+          <div className="value">{fmt(totalValueUsd)}</div>
         </div>
         <button
           className="btn btn-primary"
@@ -33,7 +34,7 @@ export default function PortfolioCard({
       </div>
       <div className="change-row">
         <span className="change-amount" style={{ color: changeColor }}>
-          {isPositive ? "+" : ""}{formatUsd(change24hUsd)}
+          {isPositive ? "+" : ""}{fmt(change24hUsd)}
         </span>
         <span
           className="change-badge"
